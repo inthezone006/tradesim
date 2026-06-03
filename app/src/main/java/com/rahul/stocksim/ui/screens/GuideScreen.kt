@@ -291,7 +291,7 @@ fun MarketTutorialScreen(onComplete: () -> Unit, onDismiss: () -> Unit) {
         ),
         TutorialStep(
             title = "Market Intelligence",
-            description = "Stay informed with the Economic Calendar and Gemini AI insights. Tap to explore!",
+            description = "Stay informed with Economic Calendar and Gemini AI. Tap to explore!",
             icon = Icons.Default.AutoAwesome
         )
     )
