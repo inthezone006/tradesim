@@ -1,6 +1,7 @@
 package com.rahul.stocksim.data
 
 import com.google.gson.JsonElement
+import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -137,7 +138,9 @@ data class TwelveDataIndicatorResponse(
 
 data class TwelveDataIndicatorValue(
     val datetime: String,
-    val rsi: String
+    @SerializedName("rsi") val rsi: String?,
+    @SerializedName("ema") val ema: String?,
+    @SerializedName("sma") val sma: String?
 )
 
 data class TwelveDataMACDResponse(
