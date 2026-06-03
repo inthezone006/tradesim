@@ -19,8 +19,8 @@ android {
         applicationId = "com.rahul.stocksim"
         minSdk = 24
         targetSdk = 35
-        versionCode = 59
-        versionName = "6.0.4"
+        versionCode = 60
+        versionName = "6.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
