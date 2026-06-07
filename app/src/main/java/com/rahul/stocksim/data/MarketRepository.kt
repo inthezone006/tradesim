@@ -258,7 +258,30 @@ class MarketRepository @Inject constructor(
     private val gson = Gson()
     
     private val apiKey = "d38davhr01qlbdj4vutgd38davhr01qlbdj4vuu0"
-    private val twelveDataApiKey = "e55badc51cfd4ba5b9ed060f2c048d57"
+    val twelveDataApiKey = "e55badc51cfd4ba5b9ed060f2c048d57"
+
+    suspend fun getSocialSentiment(symbol: String): Pair<Int, Int> {
+        return try {
+            val watchlistCount = firestore.collectionGroup("watchlist")
+                .whereEqualTo("symbol", symbol)
+                .count()
+                .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                .await()
+                .count
+
+            val portfolioCount = firestore.collectionGroup("portfolio")
+                .whereEqualTo("symbol", symbol)
+                .whereGreaterThan("quantity", 0)
+                .count()
+                .get(com.google.firebase.firestore.AggregateSource.SERVER)
+                .await()
+                .count
+
+            Pair(watchlistCount.toInt(), portfolioCount.toInt())
+        } catch (e: Exception) {
+            Pair(0, 0)
+        }
+    }
 
     init {
         CoroutineScope(Dispatchers.IO).launch {
@@ -1041,7 +1064,7 @@ class MarketRepository @Inject constructor(
         }
     }
 
-    suspend fun sellStock(symbol: String, quantity: Int, pricePerShare: Double, userId: String? = null): Result<Unit> {
+    suspend fun sellStock(symbol: String, quantity: Int, pricePerShare: Double, userId: String? = null): Result<Double> {
         val targetUserId = userId ?: auth.currentUser?.uid ?: return Result.failure(Exception("User not authenticated"))
         val totalGain = quantity * pricePerShare
         return try {
@@ -1050,6 +1073,7 @@ class MarketRepository @Inject constructor(
             
             var resultDays = -1L
             var resultInstantSell = false
+            var newBalance = 0.0
 
             firestore.runTransaction { transaction ->
                 val portfolioDoc = transaction.get(portfolioRef)
@@ -1058,7 +1082,8 @@ class MarketRepository @Inject constructor(
                 
                 if (currentQty >= quantity) {
                     val currentBalance = (transaction.get(userRef).get("balance") as? Number)?.toDouble() ?: 0.0
-                    transaction.update(userRef, "balance", currentBalance + totalGain)
+                    newBalance = currentBalance + totalGain
+                    transaction.update(userRef, "balance", newBalance)
                     transaction.update(portfolioRef, "quantity", currentQty - quantity)
                     
                     purchaseDate?.let { date ->
@@ -1082,7 +1107,7 @@ class MarketRepository @Inject constructor(
             }
 
             globalPortfolioCache = null
-            Result.success(Unit)
+            Result.success(newBalance)
         } catch (e: Exception) {
             recordError(e); Result.failure(e)
         }
@@ -1357,6 +1382,10 @@ class MarketRepository @Inject constructor(
     }.catch { e ->
         if (e is Exception) recordError(e)
         emit(emptyList())
+    }
+
+    fun getPortfolioHistory(): Flow<List<StockPricePoint>> = getAccountValueHistory().map { points ->
+        points.map { StockPricePoint(it.first / 1000, it.second) }
     }
 
     fun getCurrentUserId(): String? = auth.currentUser?.uid

@@ -16,10 +16,12 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,6 +35,7 @@ import com.rahul.stocksim.ui.components.VicoPieChart
 import com.rahul.stocksim.ui.viewmodels.PortfolioUiState
 import com.rahul.stocksim.ui.viewmodels.PortfolioViewModel
 import com.google.accompanist.pager.HorizontalPagerIndicator
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,6 +47,8 @@ fun PortfolioScreen(
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val portfolioHistory by viewModel.portfolioHistory.collectAsState()
+    
+    var showAiSheet by remember { mutableStateOf(false) }
 
     PullToRefreshBox(
         isRefreshing = isRefreshing,
@@ -92,16 +97,35 @@ fun PortfolioScreen(
                             colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
                             shape = RoundedCornerShape(16.dp)
                         ) {
-                            val pagerState = rememberPagerState(pageCount = { 3 })
+                            val pagerState = rememberPagerState(pageCount = { 4 })
+
+                            // Trigger AI Analysis when swiping to the 4th page
+                            LaunchedEffect(pagerState.currentPage) {
+                                if (pagerState.currentPage == 3 && state.aiAnalysis == null) {
+                                    viewModel.triggerAiPortfolioAnalysis()
+                                }
+                            }
                             
                             Column {
+                                val cardHeight by animateDpAsState(
+                                    targetValue = when (pagerState.currentPage) {
+                                        0 -> 300.dp // Overview with chart
+                                        1 -> 240.dp // Diversification (Adjusted to be tighter)
+                                        2 -> 250.dp // Insights
+                                        3 -> if (state.aiAnalysis != null) 500.dp else 250.dp // AI Analysis (Taller for bigger text)
+                                        else -> 250.dp
+                                    },
+                                    label = "CardHeightAnimation"
+                                )
+                                
                                 HorizontalPager(state = pagerState) {
                                     page ->
+                                    val isAiPage = page == 3
                                     Column(
                                         modifier = Modifier
-                                            .padding(24.dp)
-                                            .height(250.dp),
-                                        verticalArrangement = Arrangement.Center
+                                            .padding(top = 24.dp, start = 24.dp, end = 24.dp, bottom = 0.dp)
+                                            .height(cardHeight),
+                                        verticalArrangement = if (isAiPage) Arrangement.Top else Arrangement.Center
                                     ) {
                                         when (page) {
                                             0 -> { // Overview Card
@@ -178,7 +202,7 @@ fun PortfolioScreen(
                                                     )
                                                     VicoPieChart(
                                                         data = industryData,
-                                                        modifier = Modifier.fillMaxWidth().height(200.dp)
+                                                        modifier = Modifier.fillMaxWidth()
                                                     )
                                                 }
                                             }
@@ -229,16 +253,70 @@ fun PortfolioScreen(
                                                     )
                                                 }
                                             }
+                                            3 -> { // AI Analysis Card
+                                                val analysis = state.aiAnalysis
+                                                if (analysis != null) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFFBB86FC))
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Text("AI Portfolio Analysis", color = Color.White, fontWeight = FontWeight.Bold)
+                                                    }
+                                                    Spacer(modifier = Modifier.height(12.dp))
+                                                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                        Column {
+                                                            Text("Risk Level", color = Color.Gray, fontSize = 10.sp)
+                                                            Text(analysis.riskLevel, color = when(analysis.riskLevel) {
+                                                                "Low" -> Color.Green
+                                                                "Medium" -> Color.Yellow
+                                                                else -> Color.Red
+                                                            }, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                        }
+                                                        Column(horizontalAlignment = Alignment.End) {
+                                                            Text("Diversification", color = Color.Gray, fontSize = 10.sp)
+                                                            Text("${analysis.diversificationScore}/100", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Text(
+                                                        text = analysis.outlook, 
+                                                        color = Color.White.copy(alpha = 0.9f), 
+                                                        fontSize = 13.sp, 
+                                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, 
+                                                        lineHeight = 18.sp
+                                                    )
+                                                    Spacer(modifier = Modifier.height(14.dp))
+                                                    Text("Strategic Recommendations:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Column {
+                                                        analysis.recommendations.forEach { rec ->
+                                                            Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(bottom = 6.dp)) {
+                                                                Text("•", color = Color(0xFFBB86FC), fontSize = 14.sp, modifier = Modifier.padding(end = 4.dp))
+                                                                Text(rec, color = Color.Gray, fontSize = 13.sp, lineHeight = 18.sp)
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    Column(
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        verticalArrangement = Arrangement.Center,
+                                                        horizontalAlignment = Alignment.CenterHorizontally
+                                                    ) {
+                                                        CircularProgressIndicator(color = Color(0xFFBB86FC), modifier = Modifier.size(32.dp))
+                                                        Spacer(modifier = Modifier.height(16.dp))
+                                                        Text("Gemini is analyzing your portfolio...", color = Color.Gray, fontSize = 12.sp)
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 HorizontalPagerIndicator(
                                     pagerState = pagerState,
                                     pageCount = pagerState.pageCount,
                                     modifier = Modifier
                                         .align(Alignment.CenterHorizontally)
-                                        .padding(bottom = 8.dp),
+                                        .padding(bottom = 12.dp),
                                     activeColor = MaterialTheme.colorScheme.primary,
                                     inactiveColor = Color.Gray.copy(alpha = 0.5f),
                                     indicatorWidth = 8.dp,
@@ -247,7 +325,9 @@ fun PortfolioScreen(
                                 )
                             }
                         }
+                    }
 
+                    item {
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             text = "Your Assets",
@@ -307,6 +387,88 @@ fun PortfolioScreen(
             is PortfolioUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = state.message, color = Color.Red)
+                }
+            }
+        }
+        
+        // AI Portfolio Deep Dive Sheet
+        if (showAiSheet) {
+            val analysis = (uiState as? PortfolioUiState.Success)?.aiAnalysis
+            if (analysis != null) {
+                ModalBottomSheet(
+                    onDismissRequest = { showAiSheet = false },
+                    containerColor = Color(0xFF1F1F1F),
+                    scrimColor = Color.Black.copy(alpha = 0.6f)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp)
+                            .padding(bottom = 32.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = Color(0xFFBB86FC))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text("Full AI Portfolio Analysis", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Risk Level", color = Color.Gray, fontSize = 12.sp)
+                                    Text(analysis.riskLevel, color = when(analysis.riskLevel) {
+                                        "Low" -> Color.Green
+                                        "Medium" -> Color.Yellow
+                                        else -> Color.Red
+                                    }, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                }
+                            }
+                            Card(
+                                modifier = Modifier.weight(1f),
+                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.05f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Diversification", color = Color.Gray, fontSize = 12.sp)
+                                    Text("${analysis.diversificationScore}/100", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text("Market Outlook", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(analysis.outlook, color = Color.Gray, fontSize = 14.sp, lineHeight = 20.sp)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
+                        
+                        Text("Strategic Recommendations", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(12.dp))
+                        analysis.recommendations.forEach { rec ->
+                            Row(
+                                modifier = Modifier.padding(bottom = 10.dp),
+                                horizontalArrangement = Arrangement.Start,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Text("•", color = Color(0xFFBB86FC), fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = 6.dp))
+                                Text(rec, color = Color.Gray, fontSize = 14.sp, lineHeight = 20.sp)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { showAiSheet = false },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFBB86FC))
+                        ) {
+                            Text("Got it", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }

@@ -3,24 +3,46 @@ package com.rahul.stocksim.data
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.rahul.stocksim.BuildConfig
+import android.util.Log
+import com.google.ai.client.generativeai.type.generationConfig
+import com.google.gson.Gson
 import com.rahul.stocksim.model.Stock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class GeminiService @Inject constructor() {
     private val apiKey = BuildConfig.GEMINI_API_KEY
+    private val gson = Gson()
     
-    // Ordered list of models to try. 3.1 Flash Lite has the highest RPD (500).
+    // Config for structured JSON output
+    private val jsonConfig = generationConfig {
+        responseMimeType = "application/json"
+    }
+
     private val models = listOf(
         GenerativeModel(modelName = "gemini-3.1-flash-lite-preview", apiKey = apiKey),
         GenerativeModel(modelName = "gemini-2.5-flash-lite", apiKey = apiKey),
         GenerativeModel(modelName = "gemini-2.5-flash", apiKey = apiKey),
         GenerativeModel(modelName = "gemini-3-flash-preview", apiKey = apiKey),
         GenerativeModel(modelName = "gemma-3-1b-it", apiKey = apiKey),
-        GenerativeModel(modelName = "gemma-3-4b-it", apiKey = apiKey)
+        GenerativeModel(modelName = "gemma-3-4b-it", apiKey = apiKey),
+        GenerativeModel(modelName = "gemini-1.5-flash", apiKey = apiKey),
+        GenerativeModel(modelName = "gemini-1.5-pro", apiKey = apiKey)
+    )
+
+    private val jsonModels = listOf(
+        GenerativeModel(modelName = "gemini-3.1-flash-lite-preview", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemini-2.5-flash-lite", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemini-2.5-flash", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemini-3-flash-preview", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemma-3-1b-it", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemma-3-4b-it", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemini-1.5-flash", apiKey = apiKey, generationConfig = jsonConfig),
+        GenerativeModel(modelName = "gemini-1.5-pro", apiKey = apiKey, generationConfig = jsonConfig)
     )
 
     suspend fun generateStockAnalysis(
@@ -92,4 +114,50 @@ class GeminiService @Inject constructor() {
             else -> "AI Analysis is temporarily unavailable. ${e.message}"
         }
     }
+
+    suspend fun analyzePortfolio(
+        portfolio: List<Pair<Stock, Long>>,
+        balance: Double
+    ): PortfolioAnalysis? = withContext(Dispatchers.IO) {
+        if (apiKey.isEmpty() || portfolio.isEmpty()) return@withContext null
+
+        val portfolioStr = portfolio.joinToString("\n") { (stock, qty) ->
+            "- ${stock.symbol} (${stock.name}): $qty shares at $${stock.price}"
+        }
+
+        val prompt = """
+            Analyze the following stock portfolio and cash balance.
+            Cash Balance: $${String.format("%.2f", balance)}
+            
+            Portfolio:
+            $portfolioStr
+            
+            Provide a structured analysis in JSON format with the following fields:
+            - riskLevel: String (Low, Medium, High)
+            - diversificationScore: Int (0-100)
+            - recommendations: List of Strings (Specific actions to take)
+            - outlook: String (Short-term market outlook for this portfolio)
+        """.trimIndent()
+
+        for (model in jsonModels) {
+            try {
+                val response = model.generateContent(prompt)
+                val text = response.text
+                if (text != null) {
+                    return@withContext gson.fromJson(text, PortfolioAnalysis::class.java)
+                }
+            } catch (e: Exception) {
+                Log.e("GeminiService", "Portfolio analysis failed with ${model.modelName}", e)
+                continue
+            }
+        }
+        null
+    }
 }
+
+data class PortfolioAnalysis(
+    val riskLevel: String,
+    val diversificationScore: Int,
+    val recommendations: List<String>,
+    val outlook: String
+)

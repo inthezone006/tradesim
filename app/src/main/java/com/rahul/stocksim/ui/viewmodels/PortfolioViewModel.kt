@@ -1,19 +1,19 @@
 package com.rahul.stocksim.ui.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.rahul.stocksim.data.MarketRepository
-import com.rahul.stocksim.data.StockPricePoint
-import com.rahul.stocksim.model.Stock
-import dagger.hilt.android.lifecycle.HiltViewModel
+import com.rahul.stocksim.data.*
 import com.rahul.stocksim.model.*
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PortfolioViewModel @Inject constructor(
-    private val marketRepository: MarketRepository
+    private val marketRepository: MarketRepository,
+    private val geminiService: GeminiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PortfolioUiState>(PortfolioUiState.Loading)
@@ -34,47 +34,38 @@ class PortfolioViewModel @Inject constructor(
     val portfolioHistory: StateFlow<List<StockPricePoint>> = _portfolioHistory.asStateFlow()
 
     init {
-        loadData(forceRefresh = false)
+        loadData(false)
         loadContracts()
         loadExecutedContracts()
         loadHistory()
     }
 
-    private fun loadContracts() {
+    fun loadContracts() {
         viewModelScope.launch {
-            marketRepository.getTradeContracts(ContractStatus.PENDING)
-                .catch { emit(emptyList()) }
-                .collect {
-                    _contracts.value = it
-                    healContracts(it)
-                }
+            marketRepository.getTradeContracts(ContractStatus.PENDING).collect {
+                _contracts.value = it
+            }
         }
     }
 
-    private fun loadExecutedContracts() {
+    fun loadExecutedContracts() {
         viewModelScope.launch {
-            marketRepository.getTradeContracts(listOf(ContractStatus.EXECUTED, ContractStatus.CANCELLED))
-                .catch { emit(emptyList()) }
-                .collect {
-                    _executedContracts.value = it
-                    healContracts(it)
-                }
+            marketRepository.getTradeContracts(ContractStatus.EXECUTED).collect {
+                _executedContracts.value = it
+            }
         }
     }
 
-    private fun healContracts(contracts: List<TradeContract>) {
-        val missingLogos = contracts.filter { it.logoUrl.isNullOrEmpty() }
-        if (missingLogos.isEmpty()) return
-
+    fun healContracts(contracts: List<TradeContract>) {
         viewModelScope.launch {
-            missingLogos.forEach { contract ->
-                try {
-                    val profile = marketRepository.getCompanyProfile(contract.symbol)
-                    if (profile?.logo != null) {
-                        marketRepository.updateTradeContract(contract.copy(logoUrl = profile.logo))
+            contracts.forEach { contract ->
+                if (contract.status == ContractStatus.PENDING && contract.expirationDate != null) {
+                    if (System.currentTimeMillis() > contract.expirationDate.toDate().time) {
+                        // Settle if it's expired but still pending
+                        marketRepository.getStockQuote(contract.symbol)?.let { quote ->
+                            marketRepository.settleOption(contract, quote.price)
+                        }
                     }
-                } catch (e: Exception) {
-                    // Silently fail healing
                 }
             }
         }
@@ -84,14 +75,12 @@ class PortfolioViewModel @Inject constructor(
         viewModelScope.launch {
             marketRepository.cancelTradeContract(contractId)
             loadContracts()
-            loadExecutedContracts()
         }
     }
 
     fun closeOptionPosition(contract: TradeContract) {
         viewModelScope.launch {
-            val quote = marketRepository.getStockQuote(contract.symbol)
-            if (quote != null) {
+            marketRepository.getStockQuote(contract.symbol)?.let { quote ->
                 marketRepository.settleOption(contract, quote.price)
                 loadContracts()
                 loadExecutedContracts()
@@ -99,14 +88,10 @@ class PortfolioViewModel @Inject constructor(
         }
     }
 
-    private fun loadHistory() {
+    fun loadHistory() {
         viewModelScope.launch {
-            marketRepository.getAccountValueHistory().collect { historyPairs ->
-                // Convert Firestore pairs (ms) to StockPricePoints (s)
-                val points = historyPairs.map { (timestampMs, value) ->
-                    StockPricePoint(timestampMs / 1000, value)
-                }
-                _portfolioHistory.value = points
+            marketRepository.getPortfolioHistory().collect {
+                _portfolioHistory.value = it
             }
         }
     }
@@ -114,8 +99,9 @@ class PortfolioViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             _isRefreshing.value = true
-            loadData(forceRefresh = true)
-            // Re-fetch history to get the latest synced point
+            loadData(true)
+            loadContracts()
+            loadExecutedContracts()
             loadHistory()
             _isRefreshing.value = false
         }
@@ -142,7 +128,6 @@ class PortfolioViewModel @Inject constructor(
                     val now = System.currentTimeMillis() / 1000
                     
                     // Remove any existing point for "today" (seconds within last hour approx) 
-                    // and add the precise latest value
                     if (currentHistory.isNotEmpty() && now - currentHistory.last().timestamp < 3600) {
                         currentHistory.removeAt(currentHistory.size - 1)
                     }
@@ -154,10 +139,32 @@ class PortfolioViewModel @Inject constructor(
             }
         }
     }
+
+    fun triggerAiPortfolioAnalysis() {
+        val currentState = _uiState.value
+        if (currentState !is PortfolioUiState.Success || currentState.aiAnalysis != null) return
+
+        viewModelScope.launch {
+            try {
+                val balance = userBalance.first()
+                val analysis = geminiService.analyzePortfolio(currentState.portfolioItems, balance)
+                val latestState = _uiState.value
+                if (latestState is PortfolioUiState.Success) {
+                    _uiState.value = latestState.copy(aiAnalysis = analysis)
+                }
+            } catch (e: Exception) {
+                Log.e("PortfolioViewModel", "AI Portfolio Analysis failed", e)
+            }
+        }
+    }
 }
 
 sealed class PortfolioUiState {
     object Loading : PortfolioUiState()
-    data class Success(val portfolioItems: List<Pair<Stock, Long>>, val contracts: List<TradeContract> = emptyList()) : PortfolioUiState()
+    data class Success(
+        val portfolioItems: List<Pair<Stock, Long>>, 
+        val contracts: List<TradeContract> = emptyList(),
+        val aiAnalysis: PortfolioAnalysis? = null
+    ) : PortfolioUiState()
     data class Error(val message: String) : PortfolioUiState()
 }

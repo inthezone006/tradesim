@@ -21,6 +21,7 @@ import javax.inject.Inject
 class StockDetailViewModel @Inject constructor(
     private val marketRepository: MarketRepository,
     private val geminiService: GeminiService,
+    private val webSocket: TwelveDataWebSocket,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -63,8 +64,32 @@ class StockDetailViewModel @Inject constructor(
         if (stockSymbol != null) {
             observePersistentData(stockSymbol)
             refreshGraph(_selectedPeriod.value)
+            
+            // Connect WebSocket for real-time prices
+            webSocket.connect(marketRepository.twelveDataApiKey)
+            webSocket.subscribe(listOf(stockSymbol))
+            
+            viewModelScope.launch {
+                webSocket.priceUpdates
+                    .filter { it.symbol == stockSymbol }
+                    .collect { update ->
+                        val currentState = _uiState.value
+                        if (currentState is StockDetailUiState.Success) {
+                            val updatedStock = currentState.stock.copy(
+                                price = update.price,
+                                // We might need to recalculate change/percentChange if available from WS
+                            )
+                            _uiState.value = currentState.copy(stock = updatedStock)
+                        }
+                    }
+            }
         }
         refreshData()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        symbol?.let { webSocket.unsubscribe(listOf(it)) }
     }
 
     private fun observePersistentData(stockSymbol: String) {
@@ -152,6 +177,7 @@ class StockDetailViewModel @Inject constructor(
                 val tdEmaDeferred = async { marketRepository.getTwelveDataEMA(stockSymbol) }
                 val tdBbandsDeferred = async { marketRepository.getTwelveDataBBands(stockSymbol) }
                 val tdHistoryDeferred = async { marketRepository.getTwelveDataTimeSeries(stockSymbol, "1day") }
+                val socialSentimentDeferred = async { marketRepository.getSocialSentiment(stockSymbol) }
 
                 // Wait for market data (but NOT AI Analysis yet)
                 val profile = profileDeferred.await()
@@ -174,6 +200,7 @@ class StockDetailViewModel @Inject constructor(
                 val tdEma = tdEmaDeferred.await()
                 val tdBbands = tdBbandsDeferred.await()
                 val tdHistory = tdHistoryDeferred.await()
+                val socialSentiment = socialSentimentDeferred.await()
 
                 val aiRec = marketRepository.analyzeStock(
                     stock = stockResult,
@@ -210,7 +237,8 @@ class StockDetailViewModel @Inject constructor(
                     tdMacd = tdMacd,
                     tdEma20 = tdEma.firstOrNull()?.rsi?.toDoubleOrNull(),
                     tdBbands = tdBbands.firstOrNull(),
-                    candleHistory = tdHistory
+                    candleHistory = tdHistory,
+                    socialSentiment = socialSentiment
                 )
                 
                 _uiState.value = mainSuccessState
@@ -221,25 +249,33 @@ class StockDetailViewModel @Inject constructor(
                 _isInWatchlist.value = marketRepository.getWatchlist().any { it.symbol == stockSymbol }
                 _ownedQuantity.value = marketRepository.getPortfolio().find { it.first == stockSymbol }?.second ?: 0L
 
-                // 7. Finally, trigger AI Analysis in a separate coroutine
-                launch {
-                    try {
-                        val aiAnalysis = geminiService.generateStockAnalysis(stockResult, news, financials)
-                        marketRepository.trackAIUsage()
-                        val currentState = _uiState.value
-                        if (currentState is StockDetailUiState.Success) {
-                            val updatedState = currentState.copy(aiAnalysis = aiAnalysis)
-                            _uiState.value = updatedState
-                            marketRepository.cacheFullDetail(stockSymbol, updatedState)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("StockDetailViewModel", "AI Analysis failed", e)
-                    }
-                }
-
             } catch (e: Exception) {
                 _uiState.value = StockDetailUiState.Error(e.message ?: "Unknown error")
                 _isRefreshing.value = false
+            }
+        }
+    }
+
+    fun triggerAiAnalysis() {
+        val currentState = _uiState.value
+        if (currentState !is StockDetailUiState.Success || currentState.aiAnalysis != null) return
+
+        viewModelScope.launch {
+            try {
+                val aiAnalysis = geminiService.generateStockAnalysis(
+                    currentState.stock, 
+                    currentState.newsArticles, 
+                    currentState.financials
+                )
+                marketRepository.trackAIUsage()
+                val latestState = _uiState.value
+                if (latestState is StockDetailUiState.Success) {
+                    val updatedState = latestState.copy(aiAnalysis = aiAnalysis)
+                    _uiState.value = updatedState
+                    marketRepository.cacheFullDetail(currentState.stock.symbol, updatedState)
+                }
+            } catch (e: Exception) {
+                Log.e("StockDetailViewModel", "AI Analysis failed", e)
             }
         }
     }
@@ -276,7 +312,7 @@ class StockDetailViewModel @Inject constructor(
         return result
     }
 
-    suspend fun sellStock(quantity: Int, price: Double): Result<Unit> {
+    suspend fun sellStock(quantity: Int, price: Double): Result<Double> {
         val stockSymbol = symbol ?: return Result.failure(Exception("No symbol"))
         val result = marketRepository.sellStock(stockSymbol, quantity, price)
         if (result.isSuccess) {
@@ -391,7 +427,8 @@ sealed class StockDetailUiState {
         val tdMacd: List<TwelveDataMACDValue> = emptyList(),
         val tdEma20: Double? = null,
         val tdBbands: TwelveDataBBandsValue? = null,
-        val candleHistory: List<TwelveDataTimeSeriesValue> = emptyList()
+        val candleHistory: List<TwelveDataTimeSeriesValue> = emptyList(),
+        val socialSentiment: Pair<Int, Int> = Pair(0, 0)
     ) : StockDetailUiState()
     data class Error(val message: String) : StockDetailUiState()
 }

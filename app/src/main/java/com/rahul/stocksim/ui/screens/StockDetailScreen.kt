@@ -1,5 +1,6 @@
 package com.rahul.stocksim.ui.screens
 
+import android.app.Activity
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.*
@@ -51,6 +52,7 @@ import com.rahul.stocksim.ui.components.TradingViewChart
 import com.rahul.stocksim.ui.components.VicoLineChart
 import com.rahul.stocksim.ui.viewmodels.StockDetailUiState
 import com.rahul.stocksim.ui.viewmodels.StockDetailViewModel
+import com.rahul.stocksim.util.ReviewHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
@@ -74,6 +76,8 @@ fun StockDetailScreen(
     val priceAlerts by viewModel.priceAlerts.collectAsState()
     val activeContracts by viewModel.activeContracts.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
+    
+    val reviewHelper = remember { ReviewHelper(context as Activity) }
 
     var quantityInput by remember { mutableStateOf("1") }
     val quantity = quantityInput.toIntOrNull() ?: 0
@@ -505,73 +509,7 @@ fun StockDetailScreen(
                         }
                     }
 
-                    if (recommendations.isNotEmpty()) {
-                        item {
-                            val rec = recommendations.first()
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text("Analyst Sentiment", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-                            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F))) {
-                                Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    RecItem("Buy", rec.buy + rec.strongBuy, Color.Green)
-                                    RecItem("Hold", rec.hold, Color.Gray)
-                                    RecItem("Sell", rec.sell + rec.strongSell, Color.Red)
-                                }
-                            }
-                        }
-                    }
-
-                    esgScores?.let { esg ->
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text("Sustainability (ESG)", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-                            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F))) {
-                                Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    StatItem("Total Score", esg.totalScore?.toString() ?: "N/A")
-                                    StatItem("Env", esg.environmentScore?.toString() ?: "N/A")
-                                    StatItem("Social", esg.socialScore?.toString() ?: "N/A")
-                                    StatItem("Gov", esg.governanceScore?.toString() ?: "N/A")
-                                }
-                            }
-                        }
-                    }
-
-                    if (earnings?.earningsCalendar?.isNotEmpty() == true) {
-                        val nextEarnings = earnings.earningsCalendar.first()
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F).copy(alpha = 0.5f))) {
-                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Text("Next Earnings: ", color = Color.Gray, fontSize = 14.sp)
-                                    Text(text = formatDate(nextEarnings.date), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-
-                    if (dividends.isNotEmpty()) {
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text("Dividend History", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-                            Card(colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F))) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    dividends.take(3).forEach { div ->
-                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                            Text(text = formatDate(div.date), color = Color.Gray, fontSize = 14.sp)
-                                            Text(text = "$${div.amount} per share", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                                        }
-                                        if (div != dividends.take(3).last()) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    item { Spacer(modifier = Modifier.height(24.dp)) }
-
+                    // --- BUY/SELL SECTION ---
                     item {
                         Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F))) {
                             Column(modifier = Modifier.padding(20.dp)) {
@@ -660,10 +598,11 @@ fun StockDetailScreen(
                                     }
                                 }
 
-                                val totalCost = quantity * stock.price
+                                val quantityValue = quantityInput.toIntOrNull() ?: 0
+                                val totalCost = quantityValue * stock.price
                                 val hasEnoughMoney = balance >= totalCost
                                 val canAffordAnything = balance >= stock.price
-                                val canSellQuantity = ownedQuantity > 0 && quantity > 0 && quantity <= ownedQuantity
+                                val canSellQuantity = ownedQuantity > 0 && quantityValue > 0 && quantityValue <= ownedQuantity
 
                                 // Action Buttons Section
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -694,7 +633,7 @@ fun StockDetailScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
 
                                 // Themed Warning (Show if they don't have enough money for CURRENT quantity)
-                                if (quantity > 0 && !hasEnoughMoney) {
+                                if (quantityValue > 0 && !hasEnoughMoney) {
                                     Surface(
                                         color = Color.Red.copy(alpha = 0.1f),
                                         shape = RoundedCornerShape(8.dp),
@@ -713,7 +652,7 @@ fun StockDetailScreen(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Text(
                                                 text = if (canAffordAnything) 
-                                                    "Insufficient funds for purchasing $quantity shares."
+                                                    "Insufficient funds for purchasing $quantityValue shares."
                                                     else "Insufficient funds to purchase any shares.",
                                                 color = Color.Red,
                                                 fontSize = 12.sp,
@@ -732,7 +671,7 @@ fun StockDetailScreen(
                                     Button(
                                         onClick = {
                                             coroutineScope.launch {
-                                                val buyResult = viewModel.buyStock(quantity, stock.price)
+                                                val buyResult = viewModel.buyStock(quantityValue, stock.price)
                                                 if (buyResult.isSuccess) {
                                                     Toast.makeText(context, "Purchase Successful", Toast.LENGTH_SHORT).show()
                                                 } else {
@@ -741,7 +680,7 @@ fun StockDetailScreen(
                                             }
                                         },
                                         modifier = Modifier.weight(1f),
-                                        enabled = hasEnoughMoney && quantity > 0,
+                                        enabled = hasEnoughMoney && quantityValue > 0,
                                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
                                         shape = RoundedCornerShape(12.dp)
                                     ) { Text("BUY") }
@@ -750,9 +689,11 @@ fun StockDetailScreen(
                                         Button(
                                             onClick = {
                                                 coroutineScope.launch {
-                                                    val sellResult = viewModel.sellStock(quantity, stock.price)
+                                                    val sellResult = viewModel.sellStock(quantityValue, stock.price)
                                                     if (sellResult.isSuccess) {
                                                         Toast.makeText(context, "Sale Successful", Toast.LENGTH_SHORT).show()
+                                                        // Trigger Review on successful sale (likely to be a "Big Win" moment)
+                                                        reviewHelper.launchReviewIfEligible()
                                                     } else {
                                                         Toast.makeText(context, sellResult.exceptionOrNull()?.message ?: "Sale failed", Toast.LENGTH_SHORT).show()
                                                     }
@@ -766,26 +707,6 @@ fun StockDetailScreen(
                                     }
                                 }
                             }
-                        }
-                    }
-
-                    // --- AI PREDICTION SECTION ---
-                    aiRecommendation?.let { recommendation ->
-                        item {
-                            Spacer(modifier = Modifier.height(24.dp))
-                            AIRecommendationSection(recommendation)
-                        }
-                    }
-
-                    // --- GEMINI AI ANALYSIS SECTION ---
-                    item {
-                        AIAnalysisSection(state.aiAnalysis)
-                    }
-
-                    // --- INSIDER TRADING SECTION ---
-                    if (state.insiderTransactions.isNotEmpty()) {
-                        item {
-                            InsiderTradingSection(state.insiderTransactions)
                         }
                     }
 
@@ -840,6 +761,64 @@ fun StockDetailScreen(
                                     }
                                 }
                             }
+                        }
+                    }
+
+                    // --- NEXT EARNINGS SECTION ---
+                    if (earnings?.earningsCalendar?.isNotEmpty() == true) {
+                        val nextEarnings = earnings.earningsCalendar.first()
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F).copy(alpha = 0.5f))) {
+                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text("Next Earnings: ", color = Color.Gray, fontSize = 14.sp)
+                                    Text(text = formatDate(nextEarnings.date), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    // --- COMBINED ANALYST SENTIMENT & AI PREDICTION ---
+                    if (recommendations.isNotEmpty() || aiRecommendation != null) {
+                        item {
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text("Market Analysis", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
+                                shape = RoundedCornerShape(16.dp)
+                            ) {
+                                Column {
+                                    if (recommendations.isNotEmpty()) {
+                                        val rec = recommendations.first()
+                                        Column(modifier = Modifier.padding(20.dp)) {
+                                            Text("Analyst Sentiment", color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                RecItem("Buy", rec.buy + rec.strongBuy, Color.Green)
+                                                RecItem("Hold", rec.hold, Color.Gray)
+                                                RecItem("Sell", rec.sell + rec.strongSell, Color.Red)
+                                            }
+                                        }
+                                        if (aiRecommendation != null) {
+                                            HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
+                                        }
+                                    }
+
+                                    aiRecommendation?.let { recommendation ->
+                                        AIRecommendationContent(recommendation)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // --- GEMINI AI ANALYSIS SECTION ---
+                    item {
+                        AIAnalysisSection(state.aiAnalysis) {
+                            viewModel.triggerAiAnalysis()
                         }
                     }
 
@@ -1360,141 +1339,154 @@ fun AIRecommendationSection(recommendation: AIRecommendation) {
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "AI Prediction",
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                
-                Surface(
-                    color = when (recommendation.advice) {
-                        "BUY" -> Color(0xFF00C853).copy(alpha = 0.1f)
-                        "SELL" -> Color.Red.copy(alpha = 0.1f)
-                        else -> Color.Gray.copy(alpha = 0.1f)
-                    },
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Text(
-                        text = recommendation.advice,
-                        color = when (recommendation.advice) {
-                            "BUY" -> Color(0xFF00C853)
-                            "SELL" -> Color.Red
-                            else -> Color.Gray
-                        },
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // Confidence Meter
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text("Confidence Score", color = Color.Gray, fontSize = 12.sp)
-                    Text("${recommendation.confidence}%", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { recommendation.confidence / 100f },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(CircleShape),
-                    color = when {
-                        recommendation.confidence > 75 -> Color(0xFF00C853)
-                        recommendation.confidence > 50 -> Color.Yellow
-                        else -> Color.Red
-                    },
-                    trackColor = Color.White.copy(alpha = 0.1f)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            Text("Key Drivers", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
-            
-            recommendation.reasons.forEach { reason ->
-                Row(
-                    modifier = Modifier.padding(bottom = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = reason, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
-                }
-            }
-            
-
-        }
+        AIRecommendationContent(recommendation)
     }
 }
 
 @Composable
-fun AIAnalysisSection(analysis: String?) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp)
-            .animateContentSize(), // Smoothly animate height changes
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+fun AIRecommendationContent(recommendation: AIRecommendation) {
+    Column(modifier = Modifier.padding(20.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Psychology,
+                    imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
-                    tint = Color(0xFFBB86FC),
-                    modifier = Modifier.size(24.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Gemini AI Insights",
+                    text = "AI Prediction",
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
-            Spacer(modifier = Modifier.height(16.dp))
             
-            AnimatedContent(
-                targetState = analysis,
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(600, delayMillis = 100)) togetherWith 
-                    fadeOut(animationSpec = tween(300))
+            Surface(
+                color = when (recommendation.advice) {
+                    "BUY", "Strong Buy", "Buy" -> Color(0xFF00C853).copy(alpha = 0.1f)
+                    "SELL", "Strong Sell", "Sell" -> Color.Red.copy(alpha = 0.1f)
+                    else -> Color.Gray.copy(alpha = 0.1f)
                 },
-                label = "AIAnalysisTransition"
-            ) { targetAnalysis ->
-                if (targetAnalysis != null) {
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = recommendation.advice,
+                    color = when (recommendation.advice) {
+                        "BUY", "Strong Buy", "Buy" -> Color(0xFF00C853)
+                        "SELL", "Strong Sell", "Sell" -> Color.Red
+                        else -> Color.Gray
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        // Confidence Meter
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Confidence Score", color = Color.Gray, fontSize = 12.sp)
+                Text("${recommendation.confidence}%", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { recommendation.confidence / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(CircleShape),
+                color = when {
+                    recommendation.confidence > 75 -> Color(0xFF00C853)
+                    recommendation.confidence > 50 -> Color.Yellow
+                    else -> Color.Red
+                },
+                trackColor = Color.White.copy(alpha = 0.1f)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(20.dp))
+        
+        Text("Key Drivers", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(bottom = 12.dp))
+        
+        recommendation.reasons.forEach { reason ->
+            Row(
+                modifier = Modifier.padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(text = reason, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+fun AIAnalysisSection(analysis: String?, onExpand: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+            .clickable { 
+                expanded = !expanded 
+                if (expanded && analysis == null) onExpand()
+            }
+            .animateContentSize(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Psychology,
+                        contentDescription = null,
+                        tint = Color(0xFFBB86FC),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Gemini AI Insights",
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    tint = Color.Gray
+                )
+            }
+            
+            if (expanded) {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (analysis != null) {
                     MarkdownText(
-                        markdown = targetAnalysis,
+                        markdown = analysis,
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else {
