@@ -105,12 +105,17 @@ fun PortfolioScreen(
                                     viewModel.triggerAiPortfolioAnalysis()
                                 }
                             }
+
+                            val industryData = remember(portfolioItems) {
+                                portfolioItems.groupBy { it.first.industry ?: "Unknown" }
+                                    .mapValues { entry -> entry.value.sumOf { it.first.price * it.second } }
+                            }
                             
                             Column {
                                 val cardHeight by animateDpAsState(
                                     targetValue = when (pagerState.currentPage) {
-                                        0 -> 300.dp // Overview with chart
-                                        1 -> 240.dp // Diversification (Adjusted to be tighter)
+                                        0 -> 290.dp // Overview with chart
+                                        1 -> (40 + (industryData.size * 35)).dp.coerceIn(160.dp, 450.dp) // Dynamic height for industries
                                         2 -> 250.dp // Insights
                                         3 -> if (state.aiAnalysis != null) 500.dp else 250.dp // AI Analysis (Taller for bigger text)
                                         else -> 250.dp
@@ -120,12 +125,12 @@ fun PortfolioScreen(
                                 
                                 HorizontalPager(state = pagerState) {
                                     page ->
-                                    val isAiPage = page == 3
+                                    val isTopAligned = page == 0 || page == 1 || page == 3
                                     Column(
                                         modifier = Modifier
                                             .padding(top = 24.dp, start = 24.dp, end = 24.dp, bottom = 0.dp)
                                             .height(cardHeight),
-                                        verticalArrangement = if (isAiPage) Arrangement.Top else Arrangement.Center
+                                        verticalArrangement = if (isTopAligned) Arrangement.Top else Arrangement.Center
                                     ) {
                                         when (page) {
                                             0 -> { // Overview Card
@@ -190,9 +195,6 @@ fun PortfolioScreen(
                                             }
                                             1 -> { // Diversification Card
                                                 if (portfolioItems.isNotEmpty()) {
-                                                    val industryData = portfolioItems.groupBy { it.first.industry ?: "Unknown" }
-                                                        .mapValues { entry -> entry.value.sumOf { it.first.price * it.second } }
-                                                    
                                                     Text(
                                                         text = "Industry Diversification",
                                                         color = Color.White,
@@ -264,16 +266,16 @@ fun PortfolioScreen(
                                                     Spacer(modifier = Modifier.height(12.dp))
                                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                         Column {
-                                                            Text("Risk Level", color = Color.Gray, fontSize = 10.sp)
+                                                            Text("Risk Level", color = Color.Gray, fontSize = 12.sp)
                                                             Text(analysis.riskLevel, color = when(analysis.riskLevel) {
                                                                 "Low" -> Color.Green
                                                                 "Medium" -> Color.Yellow
                                                                 else -> Color.Red
-                                                            }, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                            }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                                         }
                                                         Column(horizontalAlignment = Alignment.End) {
-                                                            Text("Diversification", color = Color.Gray, fontSize = 10.sp)
-                                                            Text("${analysis.diversificationScore}/100", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                            Text("Diversification", color = Color.Gray, fontSize = 12.sp)
+                                                            Text("${analysis.diversificationScore}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                                         }
                                                     }
                                                     Spacer(modifier = Modifier.height(8.dp))
@@ -281,13 +283,13 @@ fun PortfolioScreen(
                                                         text = analysis.outlook, 
                                                         color = Color.White.copy(alpha = 0.9f), 
                                                         fontSize = 13.sp, 
-                                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, 
+                                                        fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
                                                         lineHeight = 18.sp
                                                     )
                                                     Spacer(modifier = Modifier.height(14.dp))
                                                     Text("Strategic Recommendations:", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                                     Spacer(modifier = Modifier.height(8.dp))
-                                                    Column {
+                                                    Column(modifier = Modifier.fillMaxHeight()) {
                                                         analysis.recommendations.forEach { rec ->
                                                             Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(bottom = 6.dp)) {
                                                                 Text("•", color = Color(0xFFBB86FC), fontSize = 14.sp, modifier = Modifier.padding(end = 4.dp))
@@ -434,7 +436,7 @@ fun PortfolioScreen(
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("Diversification", color = Color.Gray, fontSize = 12.sp)
-                                    Text("${analysis.diversificationScore}/100", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    Text("${analysis.diversificationScore}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                 }
                             }
                         }
