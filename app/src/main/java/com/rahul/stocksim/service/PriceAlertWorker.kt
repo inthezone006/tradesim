@@ -76,6 +76,7 @@ class PriceAlertWorker @AssistedInject constructor(
                                 if (result.isSuccess) {
                                     title = "Limit Order Executed: ${contract.symbol}"
                                     message = "Bought ${contract.quantity} shares at $${stock.price} (Target: $${contract.targetPrice})"
+                                    repository.updateTradeContract(contract.copy(status = ContractStatus.EXECUTED))
                                 }
                             }
                         }
@@ -86,6 +87,7 @@ class PriceAlertWorker @AssistedInject constructor(
                                 if (result.isSuccess) {
                                     title = "Limit Order Executed: ${contract.symbol}"
                                     message = "Sold ${contract.quantity} shares at $${stock.price} (Target: $${contract.targetPrice})"
+                                    repository.updateTradeContract(contract.copy(status = ContractStatus.EXECUTED))
                                 }
                             }
                         }

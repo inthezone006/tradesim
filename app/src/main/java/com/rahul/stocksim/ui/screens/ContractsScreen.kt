@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,13 +37,10 @@ fun ContractsScreen(
 ) {
     val balance by viewModel.userBalance.collectAsState(initial = 0.0)
     val uiState by viewModel.uiState.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val contracts by viewModel.contracts.collectAsState()
     val executedContracts by viewModel.executedContracts.collectAsState()
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = { viewModel.refresh() },
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF121212))

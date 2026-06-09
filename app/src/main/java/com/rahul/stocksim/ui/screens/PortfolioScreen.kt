@@ -13,7 +13,6 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
@@ -45,14 +44,11 @@ fun PortfolioScreen(
 ) {
     val balance by viewModel.userBalance.collectAsState(initial = 0.0)
     val uiState by viewModel.uiState.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val portfolioHistory by viewModel.portfolioHistory.collectAsState()
     
     var showAiSheet by remember { mutableStateOf(false) }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = { viewModel.refresh() },
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF121212))

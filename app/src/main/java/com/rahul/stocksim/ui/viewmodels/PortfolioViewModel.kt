@@ -50,7 +50,7 @@ class PortfolioViewModel @Inject constructor(
 
     fun loadExecutedContracts() {
         viewModelScope.launch {
-            marketRepository.getTradeContracts(ContractStatus.EXECUTED).collect {
+            marketRepository.getTradeContracts(listOf(ContractStatus.EXECUTED, ContractStatus.CANCELLED, ContractStatus.EXPIRED)).collect {
                 _executedContracts.value = it
             }
         }
