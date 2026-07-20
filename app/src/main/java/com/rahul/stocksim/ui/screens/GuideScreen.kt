@@ -552,7 +552,10 @@ fun TradePreview(onConfirm: () -> Unit) {
             Button(
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF00C853),
+                    contentColor = Color.White
+                ),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Confirm Purchase", fontWeight = FontWeight.Bold)

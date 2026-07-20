@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.rahul.stocksim.ui.screens.InsightsScreen
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -37,6 +38,7 @@ import com.rahul.stocksim.data.MarketRepository
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.rahul.stocksim.ui.viewmodels.PortfolioViewModel
 import com.rahul.stocksim.ui.viewmodels.MarketViewModel
+import com.rahul.stocksim.ui.viewmodels.InsightsViewModel
 import com.rahul.stocksim.ui.viewmodels.PortfolioUiState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rahul.stocksim.model.Stock
@@ -65,6 +67,7 @@ fun MainScreen(
     val navItems = listOf(
         BottomNavItem.Portfolio,
         BottomNavItem.Market,
+        BottomNavItem.Insights,
         BottomNavItem.Contracts,
         BottomNavItem.Leaderboard,
         BottomNavItem.Guide
@@ -311,6 +314,9 @@ fun MainScreen(
                         onStockClick = onStockClick,
                         onSettingsClick = { mainNavController.navigate(Screen.Settings.route) }
                     )
+                }
+                composable(BottomNavItem.Insights.route) {
+                    InsightsScreen(onStockClick = onStockClick)
                 }
                 composable(BottomNavItem.Contracts.route) {
                     ContractsScreen(mainNavController)

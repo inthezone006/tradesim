@@ -1,6 +1,7 @@
 package com.rahul.stocksim.ui.screens
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.BarChart
@@ -52,5 +53,6 @@ sealed class BottomNavItem(val route: String, val label: String, val icon: Image
     object Market : BottomNavItem("market_screen", "Stocks", Icons.Default.BarChart)
     object Contracts : BottomNavItem("contracts_screen", "Contracts", Icons.Default.AttachMoney)
     object Leaderboard : BottomNavItem("leaderboard_screen", "Leaders", Icons.Default.Leaderboard)
+    object Insights : BottomNavItem("insights_screen", "Insights", Icons.AutoMirrored.Filled.TrendingUp)
     object Guide : BottomNavItem("guide_screen", "Guide", Icons.Default.Help)
 }

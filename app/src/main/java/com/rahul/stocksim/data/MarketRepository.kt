@@ -243,6 +243,13 @@ data class WatchlistItem(val symbol: String)
 data class AIRecommendation(val advice: String, val confidence: Int, val reasons: List<String>)
 enum class AssetFilter { STOCKS, CRYPTO, FOREX, OTHERS }
 
+data class MarketInsights(
+    val indices: List<Stock>,
+    val sectors: List<Stock>,
+    val gainers: List<Stock>,
+    val losers: List<Stock>
+)
+
 @Singleton
 class MarketRepository @Inject constructor(
     private val api: FinnhubApi,
@@ -1490,6 +1497,45 @@ class MarketRepository @Inject constructor(
 
     suspend fun trackAIUsage() {
         updateAchievementProgress("ai_enthusiast", 0.2f)
+    }
+
+    suspend fun getMarketInsights(): MarketInsights {
+        val indexSymbols = listOf("SPY", "QQQ", "DIA", "IWM")
+        val sectorSymbols = listOf("XLK", "XLF", "XLV", "XLY", "XLP", "XLE", "XLI", "XLB", "XLRE", "XLU")
+        val moverCandidates = listOf(
+            "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "NFLX", 
+            "AMD", "PYPL", "INTC", "CSCO", "ADBE", "CRM", "QCOM", "JPM", "V", "MA", "WMT", "PG"
+        )
+        
+        val allSymbols = (indexSymbols + sectorSymbols + moverCandidates).distinct()
+        val allQuotes = getStocksQuotes(allSymbols)
+        
+        val indices = indexSymbols.mapNotNull { sym -> allQuotes.find { it.symbol == sym } }
+        val sectors = sectorSymbols.mapNotNull { sym -> 
+            allQuotes.find { it.symbol == sym }?.copy(name = getSectorName(sym))
+        }
+        
+        val sortedMovers = allQuotes.filter { moverCandidates.contains(it.symbol) }
+            .sortedByDescending { it.percentChange }
+            
+        val gainers = sortedMovers.take(5)
+        val losers = sortedMovers.takeLast(5).reversed()
+        
+        return MarketInsights(indices, sectors, gainers, losers)
+    }
+    
+    private fun getSectorName(symbol: String): String = when(symbol) {
+        "XLK" -> "Technology"
+        "XLF" -> "Financials"
+        "XLV" -> "Health Care"
+        "XLY" -> "Consumer Disc."
+        "XLP" -> "Consumer Staples"
+        "XLE" -> "Energy"
+        "XLI" -> "Industrials"
+        "XLB" -> "Materials"
+        "XLRE" -> "Real Estate"
+        "XLU" -> "Utilities"
+        else -> symbol
     }
 
     suspend fun getEconomicCalendar(): List<FinnhubEconomicEntry> {

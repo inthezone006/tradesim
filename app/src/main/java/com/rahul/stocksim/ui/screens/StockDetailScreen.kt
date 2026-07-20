@@ -668,43 +668,49 @@ fun StockDetailScreen(
                                     modifier = Modifier.fillMaxWidth(), 
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    Button(
-                                        onClick = {
-                                            coroutineScope.launch {
-                                                val buyResult = viewModel.buyStock(quantityValue, stock.price)
-                                                if (buyResult.isSuccess) {
-                                                    Toast.makeText(context, "Purchase Successful", Toast.LENGTH_SHORT).show()
-                                                } else {
-                                                    Toast.makeText(context, buyResult.exceptionOrNull()?.message ?: "Purchase failed", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                        enabled = hasEnoughMoney && quantityValue > 0,
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00C853)),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) { Text("BUY") }
-                                    
-                                    if (ownedQuantity > 0) {
                                         Button(
                                             onClick = {
                                                 coroutineScope.launch {
-                                                    val sellResult = viewModel.sellStock(quantityValue, stock.price)
-                                                    if (sellResult.isSuccess) {
-                                                        Toast.makeText(context, "Sale Successful", Toast.LENGTH_SHORT).show()
-                                                        // Trigger Review on successful sale (likely to be a "Big Win" moment)
-                                                        reviewHelper.launchReviewIfEligible()
+                                                    val buyResult = viewModel.buyStock(quantityValue, stock.price)
+                                                    if (buyResult.isSuccess) {
+                                                        Toast.makeText(context, "Purchase Successful", Toast.LENGTH_SHORT).show()
                                                     } else {
-                                                        Toast.makeText(context, sellResult.exceptionOrNull()?.message ?: "Sale failed", Toast.LENGTH_SHORT).show()
+                                                        Toast.makeText(context, buyResult.exceptionOrNull()?.message ?: "Purchase failed", Toast.LENGTH_SHORT).show()
                                                     }
                                                 }
                                             },
                                             modifier = Modifier.weight(1f),
-                                            enabled = canSellQuantity,
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD50000)),
+                                            enabled = hasEnoughMoney && quantityValue > 0,
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFF00C853),
+                                                contentColor = Color.White
+                                            ),
                                             shape = RoundedCornerShape(12.dp)
-                                        ) { Text("SELL") }
-                                    }
+                                        ) { Text("BUY") }
+                                        
+                                        if (ownedQuantity > 0) {
+                                            Button(
+                                                onClick = {
+                                                    coroutineScope.launch {
+                                                        val sellResult = viewModel.sellStock(quantityValue, stock.price)
+                                                        if (sellResult.isSuccess) {
+                                                            Toast.makeText(context, "Sale Successful", Toast.LENGTH_SHORT).show()
+                                                            // Trigger Review on successful sale (likely to be a "Big Win" moment)
+                                                            reviewHelper.launchReviewIfEligible()
+                                                        } else {
+                                                            Toast.makeText(context, sellResult.exceptionOrNull()?.message ?: "Sale failed", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                                },
+                                                modifier = Modifier.weight(1f),
+                                                enabled = canSellQuantity,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = Color(0xFFD50000),
+                                                    contentColor = Color.White
+                                                ),
+                                                shape = RoundedCornerShape(12.dp)
+                                            ) { Text("SELL") }
+                                        }
                                 }
                             }
                         }
@@ -1090,7 +1096,10 @@ fun TradeContractSheet(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00796B)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF00796B),
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(8.dp)
                     ) { Text("Buy At Target") }
                     
@@ -1103,7 +1112,10 @@ fun TradeContractSheet(
                             }
                         },
                         modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD32F2F),
+                            contentColor = Color.White
+                        ),
                         shape = RoundedCornerShape(8.dp)
                     ) { Text("Sell At Target") }
                 }
@@ -1316,7 +1328,10 @@ fun SimulatedOptionsView(stock: Stock, viewModel: StockDetailViewModel) {
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
+            )
         ) {
             Text("Buy $contractsQuantity Contract${if (contractsQuantity > 1) "s" else ""}")
         }
