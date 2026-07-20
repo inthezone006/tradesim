@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.navigation.NavController
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.rahul.stocksim.R
@@ -177,8 +178,12 @@ fun RegisterScreen(navController: NavController) {
 
                 OutlinedButton(
                     onClick = {
-                        val signInOption = GetSignInWithGoogleOption.Builder(serverClientId = WEB_CLIENT_ID).build()
-                        val request = GetCredentialRequest.Builder().addCredentialOption(signInOption).build()
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setServerClientId(WEB_CLIENT_ID)
+                            .setFilterByAuthorizedAccounts(false)
+                            .setAutoSelectEnabled(false)
+                            .build()
+                        val request = GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
 
                         coroutineScope.launch {
                             try {
@@ -187,13 +192,29 @@ fun RegisterScreen(navController: NavController) {
                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
                                 val signInResult = authRepository.signInWithGoogle(googleIdTokenCredential.idToken)
                                 signInResult.onSuccess { isNewUser ->
+                                    val user = authRepository.currentUser
                                     if (isNewUser) {
-                                        navController.navigate(Screen.PasswordSetup.createRoute(false)) {
+                                        navController.navigate(Screen.PasswordSetup.createRoute(
+                                            isChangePassword = false,
+                                            name = user?.displayName,
+                                            email = user?.email
+                                        )) {
                                             popUpTo(Screen.Register.route) { inclusive = true }
                                         }
                                     } else {
-                                        navController.navigate(Screen.Main.route) {
-                                            popUpTo(Screen.Register.route) { inclusive = true }
+                                        coroutineScope.launch {
+                                            if (authRepository.isProfileCreated()) {
+                                                navController.navigate(Screen.Main.route) {
+                                                    popUpTo(Screen.Register.route) { inclusive = true }
+                                                }
+                                            } else {
+                                                navController.navigate(Screen.BalanceSelection.createRoute(
+                                                    name = user?.displayName,
+                                                    email = user?.email
+                                                )) {
+                                                    popUpTo(Screen.Register.route) { inclusive = true }
+                                                }
+                                            }
                                         }
                                     }
                                 }.onFailure { e ->

@@ -28,6 +28,7 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import androidx.navigation.NavController
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.rahul.stocksim.R
@@ -46,11 +47,11 @@ private fun Context.findActivity(): Activity? {
 }
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(navController: NavController, initialError: String? = null) {
     val authRepository = AuthRepository()
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var errorMessage by remember { mutableStateOf(initialError) }
     var isLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -177,12 +178,15 @@ fun LoginScreen(navController: NavController) {
                 // Google sign in button
                 OutlinedButton(
                     onClick = {
-                        // Use GetSignInWithGoogleOption for a button-triggered flow
-                        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(serverClientId = WEB_CLIENT_ID)
+                        // Use GetGoogleIdOption for a more flexible flow that can handle re-auth issues
+                        val googleIdOption = GetGoogleIdOption.Builder()
+                            .setServerClientId(WEB_CLIENT_ID)
+                            .setFilterByAuthorizedAccounts(false)
+                            .setAutoSelectEnabled(false)
                             .build()
 
                         val request = GetCredentialRequest.Builder()
-                            .addCredentialOption(signInWithGoogleOption)
+                            .addCredentialOption(googleIdOption)
                             .build()
 
                         coroutineScope.launch {
@@ -199,12 +203,28 @@ fun LoginScreen(navController: NavController) {
                                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(result.credential.data)
                                 val signInResult = authRepository.signInWithGoogle(googleIdTokenCredential.idToken)
                                 signInResult.onSuccess { isNewUser ->
+                                    val user = authRepository.currentUser
                                     if (isNewUser) {
-                                        navController.navigate(Screen.PasswordSetup.createRoute(false)) {
+                                        navController.navigate(Screen.PasswordSetup.createRoute(
+                                            isChangePassword = false,
+                                            name = user?.displayName,
+                                            email = user?.email
+                                        )) {
                                             popUpTo(Screen.Login.route) { inclusive = true }
                                         }
                                     } else {
-                                        handlePostLogin()
+                                        coroutineScope.launch {
+                                            if (authRepository.isProfileCreated()) {
+                                                handlePostLogin()
+                                            } else {
+                                                navController.navigate(Screen.BalanceSelection.createRoute(
+                                                    name = user?.displayName,
+                                                    email = user?.email
+                                                )) {
+                                                    popUpTo(Screen.Login.route) { inclusive = true }
+                                                }
+                                            }
+                                        }
                                     }
                                 }.onFailure { e ->
                                     errorMessage = "Firebase Google Auth Failed: ${e.message}"

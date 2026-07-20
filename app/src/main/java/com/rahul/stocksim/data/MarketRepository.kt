@@ -1279,11 +1279,16 @@ class MarketRepository @Inject constructor(
         val listener = firestore.collection("users").document(userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
+                    trySend(0.0)
                     recordError(error)
                     return@addSnapshotListener
                 }
-                val balance = (snapshot?.get("balance") as? Number)?.toDouble() ?: 0.0
-                trySend(balance)
+                if (snapshot != null && snapshot.exists()) {
+                    val balance = (snapshot.get("balance") as? Number)?.toDouble() ?: 0.0
+                    trySend(balance)
+                } else {
+                    trySend(0.0)
+                }
             }
         awaitClose { listener.remove() }
     }.catch { e ->
@@ -1362,11 +1367,9 @@ class MarketRepository @Inject constructor(
             .orderBy("timestamp")
             .get().await()
         
-        // If there are no values present, backfill 30 days automatically
         if (snapshot.isEmpty) {
             val balance = getUserBalance().first()
             saveAccountValueHistory(userId, balance)
-            // Re-fetch after backfilling
             snapshot = firestore.collection("users").document(userId)
                 .collection("account_history")
                 .orderBy("timestamp")
@@ -1503,7 +1506,29 @@ class MarketRepository @Inject constructor(
     suspend fun getEarningsCalendar(symbol: String): FinnhubEarningsCalendarResponse? = getCachedOrFetch("earnings_$symbol", LONG_CACHE_EXPIRATION_MS) {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()); val calendar = Calendar.getInstance(); val today = sdf.format(calendar.time)
         calendar.add(Calendar.MONTH, 6)
-        try { api.getEarningsCalendar(symbol, today, sdf.format(calendar.time), apiKey) } catch (e: Exception) { recordError(e); null }
+        try { 
+            // Try Twelve Data first
+            val tdResponse = twelveDataApi.getEarningsCalendar(symbol, twelveDataApiKey)
+            if (tdResponse.status == "ok" && tdResponse.data != null) {
+                return@getCachedOrFetch FinnhubEarningsCalendarResponse(
+                    earningsCalendar = tdResponse.data.map { entry ->
+                        FinnhubEarningsEntry(
+                            date = entry.date,
+                            epsActual = entry.eps_actual?.toDoubleOrNull(),
+                            epsEstimate = entry.eps_estimate?.toDoubleOrNull(),
+                            hour = entry.time ?: "",
+                            quarter = 0, // Not provided by TD in this endpoint easily
+                            symbol = entry.symbol,
+                            year = entry.date.take(4).toIntOrNull() ?: 0
+                        )
+                    }
+                )
+            }
+            api.getEarningsCalendar(symbol, today, sdf.format(calendar.time), apiKey) 
+        } catch (e: Exception) { 
+            // Fallback to Finnhub on any TD failure (like 403)
+            try { api.getEarningsCalendar(symbol, today, sdf.format(calendar.time), apiKey) } catch (e2: Exception) { recordError(e2); null }
+        }
     }
 
     suspend fun getTechnicalIndicator(symbol: String, indicator: String, timeperiod: Int? = null): FinnhubIndicatorResponse? = getCachedOrFetch("indicator_${symbol}_${indicator}_$timeperiod", CACHE_EXPIRATION_MS) {
@@ -1514,13 +1539,53 @@ class MarketRepository @Inject constructor(
     suspend fun getDividends(symbol: String): List<FinnhubDividendResponse> = getCachedOrFetch("dividends_$symbol", LONG_CACHE_EXPIRATION_MS) {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()); val calendar = Calendar.getInstance(); val today = sdf.format(calendar.time)
         calendar.add(Calendar.YEAR, -1)
-        try { api.getDividends(symbol, sdf.format(calendar.time), today, apiKey) } catch (e: Exception) { recordError(e); emptyList() }
+        try { 
+            // Try Twelve Data first
+            val tdResponse = twelveDataApi.getDividendsCalendar(symbol, twelveDataApiKey)
+            if (tdResponse.status == "ok" && tdResponse.data != null) {
+                return@getCachedOrFetch tdResponse.data.map { entry ->
+                    FinnhubDividendResponse(
+                        symbol = entry.symbol,
+                        date = entry.date,
+                        amount = entry.amount?.toDoubleOrNull() ?: 0.0,
+                        adjustedAmount = entry.amount?.toDoubleOrNull() ?: 0.0,
+                        payDate = entry.payable_date ?: "",
+                        recordDate = "",
+                        declarationDate = "",
+                        currency = entry.currency ?: "USD"
+                    )
+                }
+            }
+            api.getDividends(symbol, sdf.format(calendar.time), today, apiKey) 
+        } catch (e: Exception) { 
+            try { api.getDividends(symbol, sdf.format(calendar.time), today, apiKey) } catch (e2: Exception) { recordError(e2); emptyList() }
+        }
     } ?: emptyList()
 
     suspend fun getIpoCalendar(): List<FinnhubIpoEntry> = getCachedOrFetch("ipo_calendar", LONG_CACHE_EXPIRATION_MS) {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()); val calendar = Calendar.getInstance(); val today = sdf.format(calendar.time)
         calendar.add(Calendar.MONTH, 1)
-        try { api.getIpoCalendar(today, sdf.format(calendar.time), apiKey).ipoCalendar } catch (e: Exception) { recordError(e); emptyList() }
+        try { 
+            // Try Twelve Data first
+            val tdResponse = twelveDataApi.getIpoCalendar(twelveDataApiKey)
+            if (tdResponse.status == "ok" && tdResponse.data != null) {
+                return@getCachedOrFetch tdResponse.data.map { entry ->
+                    FinnhubIpoEntry(
+                        date = entry.date,
+                        exchange = entry.exchange ?: "",
+                        name = entry.name ?: "",
+                        numberOfShares = entry.shares_offered?.toLongOrNull() ?: 0L,
+                        price = entry.price_range ?: "",
+                        status = "expected",
+                        symbol = entry.symbol,
+                        totalSharesValue = 0L
+                    )
+                }
+            }
+            api.getIpoCalendar(today, sdf.format(calendar.time), apiKey).ipoCalendar 
+        } catch (e: Exception) { 
+            try { api.getIpoCalendar(today, sdf.format(calendar.time), apiKey).ipoCalendar } catch (e2: Exception) { recordError(e2); emptyList() }
+        }
     } ?: emptyList()
 
     suspend fun getNewsSentiment(symbol: String): FinnhubNewsSentimentResponse? = getCachedOrFetch("sentiment_$symbol", CACHE_EXPIRATION_MS) {

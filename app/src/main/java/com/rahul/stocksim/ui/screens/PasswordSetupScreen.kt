@@ -91,14 +91,35 @@ fun PasswordSetupScreen(
                                 else snackbarHostState.showSnackbar("Error: ${result.exceptionOrNull()?.localizedMessage}")
                             }
                         } else {
-                            // Proceed to difficulty selection with details
-                            navController.navigate(
-                                Screen.BalanceSelection.createRoute(
-                                    name = initialName,
-                                    email = initialEmail,
-                                    password = password
+                            val currentUser = authRepository.currentUser
+                            if (currentUser != null) {
+                                // Google user setting a password for the first time
+                                isLoading = true
+                                coroutineScope.launch {
+                                    val result = authRepository.updatePassword(password)
+                                    isLoading = false
+                                    if (result.isSuccess) {
+                                        navController.navigate(
+                                            Screen.BalanceSelection.createRoute(
+                                                name = initialName ?: currentUser.displayName,
+                                                email = initialEmail ?: currentUser.email,
+                                                password = null // No need to pass password to register again
+                                            )
+                                        )
+                                    } else {
+                                        snackbarHostState.showSnackbar("Error linking password: ${result.exceptionOrNull()?.localizedMessage}")
+                                    }
+                                }
+                            } else {
+                                // Standard registration flow
+                                navController.navigate(
+                                    Screen.BalanceSelection.createRoute(
+                                        name = initialName,
+                                        email = initialEmail,
+                                        password = password
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 },

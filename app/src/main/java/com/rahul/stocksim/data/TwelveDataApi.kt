@@ -64,7 +64,68 @@ interface TwelveDataApi {
         @Query("interval") interval: String,
         @Query("apikey") apiKey: String
     ): TwelveDataStochResponse
+
+    @GET("earnings_calendar")
+    suspend fun getEarningsCalendar(
+        @Query("symbol") symbol: String?,
+        @Query("apikey") apiKey: String
+    ): TwelveDataEarningsCalendarResponse
+
+    @GET("dividends_calendar")
+    suspend fun getDividendsCalendar(
+        @Query("symbol") symbol: String?,
+        @Query("apikey") apiKey: String
+    ): TwelveDataDividendsCalendarResponse
+
+    @GET("ipo_calendar")
+    suspend fun getIpoCalendar(
+        @Query("apikey") apiKey: String
+    ): TwelveDataIpoCalendarResponse
 }
+
+data class TwelveDataEarningsCalendarResponse(
+    val status: String?,
+    val data: List<TwelveDataEarningsEntry>?
+)
+
+data class TwelveDataEarningsEntry(
+    val symbol: String,
+    val name: String?,
+    val date: String,
+    val time: String?,
+    val eps_estimate: String?,
+    val eps_actual: String?,
+    val difference: String?,
+    val surprise_prc: String?
+)
+
+data class TwelveDataDividendsCalendarResponse(
+    val status: String?,
+    val data: List<TwelveDataDividendsEntry>?
+)
+
+data class TwelveDataDividendsEntry(
+    val symbol: String,
+    val name: String?,
+    val date: String,
+    val amount: String?,
+    val currency: String?,
+    val payable_date: String?
+)
+
+data class TwelveDataIpoCalendarResponse(
+    val status: String?,
+    val data: List<TwelveDataIpoEntry>?
+)
+
+data class TwelveDataIpoEntry(
+    val symbol: String,
+    val name: String?,
+    val date: String,
+    val exchange: String?,
+    val price_range: String?,
+    val shares_offered: String?
+)
 
 data class TwelveDataBBandsResponse(
     val meta: TwelveDataMeta?,

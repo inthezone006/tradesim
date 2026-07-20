@@ -13,7 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -102,7 +102,22 @@ class MainActivity : ComponentActivity() {
                 }
             }
             
-            val startDest = if (auth.currentUser != null) Screen.Main.route else Screen.Login.route
+            val startDest = remember { mutableStateOf<String?>(null) }
+
+            LaunchedEffect(Unit) {
+                if (auth.currentUser != null) {
+                    val hasProfile = authRepository.isProfileCreated()
+                    if (!hasProfile) {
+                        Log.w("MainActivity", "User authenticated but profile missing. Signing out for safety.")
+                        auth.signOut()
+                        startDest.value = Screen.Login.createRoute("Account was not fully set up. Please sign in again.")
+                    } else {
+                        startDest.value = Screen.Main.route
+                    }
+                } else {
+                    startDest.value = Screen.Login.route
+                }
+            }
 
             // Track screen views
             LaunchedEffect(navController) {
@@ -122,9 +137,10 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = startDest,
+                    if (startDest.value != null) {
+                        NavHost(
+                            navController = navController,
+                            startDestination = startDest.value!!,
                         enterTransition = { 
                             slideIntoContainer(
                                 AnimatedContentTransitionScope.SlideDirection.Left,
@@ -150,8 +166,18 @@ class MainActivity : ComponentActivity() {
                             ) + fadeOut(animationSpec = tween(400))
                         }
                     ) {
-                        composable(route = Screen.Login.route) {
-                            LoginScreen(navController = navController)
+                        composable(
+                            route = Screen.Login.route,
+                            arguments = listOf(
+                                navArgument("error") {
+                                    type = NavType.StringType
+                                    nullable = true
+                                    defaultValue = null
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val error = backStackEntry.arguments?.getString("error")
+                            LoginScreen(navController = navController, initialError = error)
                         }
                         composable(Screen.Register.route) {
                             RegisterScreen(navController = navController)
@@ -267,4 +293,5 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+}
 }

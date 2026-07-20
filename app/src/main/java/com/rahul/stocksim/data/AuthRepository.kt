@@ -193,6 +193,9 @@ class AuthRepository {
             logEventWithUser("update_password")
             Result.success(Unit)
         } catch (e: Exception) {
+            if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                Log.w("AUTH_REPO", "Login required to update password")
+            }
             recordError(e)
             Result.failure(e)
         }
@@ -317,6 +320,17 @@ class AuthRepository {
         } catch (e: Exception) {
             recordError(e)
             Result.failure(e)
+        }
+    }
+
+    suspend fun isProfileCreated(): Boolean {
+        val user = auth.currentUser ?: return false
+        return try {
+            val snapshot = firestore.collection("users").document(user.uid).get().await()
+            snapshot.exists() && snapshot.contains("balance")
+        } catch (e: Exception) {
+            recordError(e)
+            false
         }
     }
 

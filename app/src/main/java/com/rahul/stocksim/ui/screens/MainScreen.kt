@@ -38,7 +38,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.rahul.stocksim.ui.viewmodels.PortfolioViewModel
 import com.rahul.stocksim.ui.viewmodels.MarketViewModel
 import com.rahul.stocksim.ui.viewmodels.PortfolioUiState
-import com.rahul.stocksim.ui.viewmodels.MacroViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rahul.stocksim.model.Stock
 import com.rahul.stocksim.util.NetworkObserver
@@ -68,7 +67,6 @@ fun MainScreen(
         BottomNavItem.Market,
         BottomNavItem.Contracts,
         BottomNavItem.Leaderboard,
-        BottomNavItem.Macro,
         BottomNavItem.Guide
     )
     
@@ -319,9 +317,6 @@ fun MainScreen(
                 }
                 composable(BottomNavItem.Leaderboard.route) {
                     LeaderboardScreen(mainNavController)
-                }
-                composable(BottomNavItem.Macro.route) {
-                    MacroScreen()
                 }
                 composable(BottomNavItem.Guide.route) {
                     GuideScreen(mainNavController)
