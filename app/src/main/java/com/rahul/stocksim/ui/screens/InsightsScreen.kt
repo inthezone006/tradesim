@@ -222,8 +222,7 @@ fun SectorItem(stock: Stock, modifier: Modifier = Modifier, onClick: () -> Unit)
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF121212)),
+                    .clip(RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -281,8 +280,7 @@ fun MoverItem(stock: Stock, onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFF121212)),
+                    .clip(RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 if (!stock.logoUrl.isNullOrEmpty()) {
