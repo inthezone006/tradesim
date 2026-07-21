@@ -55,7 +55,7 @@ fun GuideScreen(navController: NavController) {
     ) {
         item {
             Text(
-                text = "TradeSim Guide",
+                text = "Guide",
                 style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,

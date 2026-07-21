@@ -4,9 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
@@ -28,6 +30,7 @@ import coil.compose.AsyncImage
 import com.rahul.stocksim.model.Stock
 import com.rahul.stocksim.ui.viewmodels.InsightsUiState
 import com.rahul.stocksim.ui.viewmodels.InsightsViewModel
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,112 +40,118 @@ fun InsightsScreen(
     viewModel: InsightsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
 
-    Box(
+    val tabs = listOf(
+        Triple("Top Gainers", Icons.AutoMirrored.Filled.TrendingUp, 0),
+        Triple("Top Losers", Icons.AutoMirrored.Filled.TrendingDown, 1),
+        Triple("Sectors", Icons.Default.PieChart, 2),
+        Triple("Indices", Icons.Default.Public, 3)
+    )
+
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF121212))
     ) {
-        when (val state = uiState) {
-            is InsightsUiState.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
-                }
+        Text(
+            text = "Insights",
+            color = Color.White,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(16.dp)
+        )
+
+        ScrollableTabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = Color.Transparent,
+            contentColor = Color.White,
+            edgePadding = 16.dp,
+            divider = {},
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                    color = Color.White
+                )
             }
-            is InsightsUiState.Success -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    item {
-                        Text(
-                            text = "Market Insights",
-                            color = Color.White,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+        ) {
+            tabs.forEach { (label, icon, index) ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label)
+                        }
                     }
+                )
+            }
+        }
 
-                    item {
-                        var selectedTab by remember { mutableIntStateOf(0) }
-                        val tabs = listOf(
-                            Triple("Top Gainers", Icons.AutoMirrored.Filled.TrendingUp, 0),
-                            Triple("Top Losers", Icons.AutoMirrored.Filled.TrendingDown, 1),
-                            Triple("Sectors", Icons.Default.PieChart, 2),
-                            Triple("Indices", Icons.Default.Public, 3)
-                        )
-
-                        Column {
-                            ScrollableTabRow(
-                                selectedTabIndex = selectedTab,
-                                containerColor = Color.Transparent,
-                                contentColor = Color.White,
-                                edgePadding = 0.dp,
-                                divider = {},
-                                indicator = { tabPositions ->
-                                    TabRowDefaults.SecondaryIndicator(
-                                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
-                                        color = Color.White
-                                    )
-                                }
-                            ) {
-                                tabs.forEach { (label, icon, index) ->
-                                    Tab(
-                                        selected = selectedTab == index,
-                                        onClick = { selectedTab = index },
-                                        text = {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = icon,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(label)
-                                            }
-                                        }
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            when (selectedTab) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val state = uiState) {
+                is InsightsUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White)
+                    }
+                }
+                is InsightsUiState.Success -> {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.Top
+                    ) { pageIndex ->
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            when (pageIndex) {
                                 0 -> { // Top Gainers
-                                    state.insights.gainers.forEach { mover ->
-                                        MoverItem(mover) { onStockClick(mover) }
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    items(state.insights.gainers.size) { index ->
+                                        val stock = state.insights.gainers[index]
+                                        MoverItem(stock) { onStockClick(stock) }
                                     }
                                 }
                                 1 -> { // Top Losers
-                                    state.insights.losers.forEach { mover ->
-                                        MoverItem(mover) { onStockClick(mover) }
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    items(state.insights.losers.size) { index ->
+                                        val stock = state.insights.losers[index]
+                                        MoverItem(stock) { onStockClick(stock) }
                                     }
                                 }
                                 2 -> { // Sector Performance
-                                    state.insights.sectors.forEach { sector ->
-                                        SectorItem(sector, modifier = Modifier.fillMaxWidth(), onClick = { onStockClick(sector) })
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    items(state.insights.sectors.size) { index ->
+                                        val sector = state.insights.sectors[index]
+                                        SectorItem(sector, modifier = Modifier.fillMaxWidth()) { onStockClick(sector) }
                                     }
                                 }
                                 3 -> { // Global Indices
-                                    state.insights.indices.forEach { index ->
-                                        IndexCard(index, modifier = Modifier.fillMaxWidth()) { onStockClick(index) }
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                    items(state.insights.indices.size) { index ->
+                                        val stockIndex = state.insights.indices[index]
+                                        IndexCard(stockIndex, modifier = Modifier.fillMaxWidth()) { onStockClick(stockIndex) }
                                     }
                                 }
                             }
+                            item { Spacer(modifier = Modifier.height(32.dp)) }
                         }
                     }
-                    
-                    item { Spacer(modifier = Modifier.height(32.dp)) }
                 }
-            }
-            is InsightsUiState.Error -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.message, color = Color.Red, textAlign = TextAlign.Center)
+                is InsightsUiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(text = state.message, color = Color.Red, textAlign = TextAlign.Center)
+                    }
                 }
             }
         }
@@ -177,7 +186,7 @@ fun IndexCard(stock: Stock, modifier: Modifier = Modifier, onClick: () -> Unit) 
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.Public,
+                        imageVector = getIndexIcon(stock.symbol),
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
@@ -263,6 +272,14 @@ private fun getSectorIcon(symbol: String): ImageVector = when(symbol) {
     "XLRE" -> Icons.Default.HomeWork
     "XLU" -> Icons.Default.Lightbulb
     else -> Icons.Default.Category
+}
+
+private fun getIndexIcon(symbol: String): ImageVector = when(symbol) {
+    "SPY" -> Icons.Default.Leaderboard
+    "QQQ" -> Icons.Default.QueryStats
+    "DIA" -> Icons.AutoMirrored.Filled.ShowChart
+    "IWM" -> Icons.Default.AutoGraph
+    else -> Icons.Default.Public
 }
 
 @Composable

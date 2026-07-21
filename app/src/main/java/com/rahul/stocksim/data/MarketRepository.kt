@@ -1499,7 +1499,15 @@ class MarketRepository @Inject constructor(
         updateAchievementProgress("ai_enthusiast", 0.2f)
     }
 
+    private var cachedMarketInsights: MarketInsights? = null
+    private var lastInsightsFetch: Long = 0L
+
     suspend fun getMarketInsights(): MarketInsights {
+        val now = System.currentTimeMillis()
+        if (cachedMarketInsights != null && now - lastInsightsFetch < CACHE_EXPIRATION_MS) {
+            return cachedMarketInsights!!
+        }
+
         val indexSymbols = listOf("SPY", "QQQ", "DIA", "IWM")
         val sectorSymbols = listOf("XLK", "XLF", "XLV", "XLY", "XLP", "XLE", "XLI", "XLB", "XLRE", "XLU")
         val moverCandidates = listOf(
@@ -1513,7 +1521,7 @@ class MarketRepository @Inject constructor(
         val indices = indexSymbols.mapNotNull { sym -> allQuotes.find { it.symbol == sym } }
         val sectors = sectorSymbols.mapNotNull { sym -> 
             allQuotes.find { it.symbol == sym }?.copy(name = getSectorName(sym))
-        }
+        }.sortedByDescending { it.percentChange }
         
         val sortedMovers = allQuotes.filter { moverCandidates.contains(it.symbol) }
             .sortedByDescending { it.percentChange }
@@ -1521,14 +1529,17 @@ class MarketRepository @Inject constructor(
         val gainers = sortedMovers.take(10)
         val losers = sortedMovers.takeLast(10).reversed()
         
-        return MarketInsights(indices, sectors, gainers, losers)
+        val insights = MarketInsights(indices, sectors, gainers, losers)
+        cachedMarketInsights = insights
+        lastInsightsFetch = now
+        return insights
     }
     
     private fun getSectorName(symbol: String): String = when(symbol) {
         "XLK" -> "Technology"
         "XLF" -> "Financials"
         "XLV" -> "Health Care"
-        "XLY" -> "Consumer Disc."
+        "XLY" -> "Consumer Discretionary"
         "XLP" -> "Consumer Staples"
         "XLE" -> "Energy"
         "XLI" -> "Industrials"

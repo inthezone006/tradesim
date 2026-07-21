@@ -165,7 +165,7 @@ fun LeaderboardScreen(mainNavController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Global Leaderboard",
+                    text = "Leaderboard",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Bold
