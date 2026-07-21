@@ -4,11 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -34,7 +34,7 @@ import java.util.Locale
 @Composable
 fun InsightsScreen(
     onStockClick: (Stock) -> Unit,
-    viewModel: InsightsViewModel = hiltViewModel()
+    viewModel: InsightsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -64,61 +64,21 @@ fun InsightsScreen(
                         )
                     }
 
-                    // Global Indices
-                    item {
-                        Column {
-                            Text(
-                                "Global Indices",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(state.insights.indices) { index ->
-                                    IndexCard(index) { onStockClick(index) }
-                                }
-                            }
-                        }
-                    }
-
-                    // Sector Performance
-                    item {
-                        Column {
-                            Text(
-                                "Sector Performance",
-                                color = Color.White,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
-                            state.insights.sectors.chunked(2).forEach { pair ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    pair.forEach { sector ->
-                                        SectorItem(sector, modifier = Modifier.weight(1f), onClick = { onStockClick(sector) })
-                                    }
-                                    if (pair.size == 1) {
-                                        Spacer(modifier = Modifier.weight(1f))
-                                    }
-                                }
-                                Spacer(modifier = Modifier.height(8.dp))
-                            }
-                        }
-                    }
-
-                    // Top Movers
                     item {
                         var selectedTab by remember { mutableIntStateOf(0) }
+                        val tabs = listOf(
+                            Triple("Top Gainers", Icons.AutoMirrored.Filled.TrendingUp, 0),
+                            Triple("Top Losers", Icons.AutoMirrored.Filled.TrendingDown, 1),
+                            Triple("Sectors", Icons.Default.PieChart, 2),
+                            Triple("Indices", Icons.Default.Public, 3)
+                        )
+
                         Column {
-                            TabRow(
+                            ScrollableTabRow(
                                 selectedTabIndex = selectedTab,
                                 containerColor = Color.Transparent,
                                 contentColor = Color.White,
+                                edgePadding = 0.dp,
                                 divider = {},
                                 indicator = { tabPositions ->
                                     TabRowDefaults.SecondaryIndicator(
@@ -127,24 +87,52 @@ fun InsightsScreen(
                                     )
                                 }
                             ) {
-                                Tab(
-                                    selected = selectedTab == 0,
-                                    onClick = { selectedTab = 0 },
-                                    text = { Text("Top Gainers") }
-                                )
-                                Tab(
-                                    selected = selectedTab == 1,
-                                    onClick = { selectedTab = 1 },
-                                    text = { Text("Top Losers") }
-                                )
+                                tabs.forEach { (label, icon, index) ->
+                                    Tab(
+                                        selected = selectedTab == index,
+                                        onClick = { selectedTab = index },
+                                        text = {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                    imageVector = icon,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(label)
+                                            }
+                                        }
+                                    )
+                                }
                             }
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            val movers = if (selectedTab == 0) state.insights.gainers else state.insights.losers
-                            movers.forEach { mover ->
-                                MoverItem(mover, onClick = { onStockClick(mover) })
-                                Spacer(modifier = Modifier.height(8.dp))
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            when (selectedTab) {
+                                0 -> { // Top Gainers
+                                    state.insights.gainers.forEach { mover ->
+                                        MoverItem(mover) { onStockClick(mover) }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
+                                1 -> { // Top Losers
+                                    state.insights.losers.forEach { mover ->
+                                        MoverItem(mover) { onStockClick(mover) }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
+                                2 -> { // Sector Performance
+                                    state.insights.sectors.forEach { sector ->
+                                        SectorItem(sector, modifier = Modifier.fillMaxWidth(), onClick = { onStockClick(sector) })
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
+                                3 -> { // Global Indices
+                                    state.insights.indices.forEach { index ->
+                                        IndexCard(index, modifier = Modifier.fillMaxWidth()) { onStockClick(index) }
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
                             }
                         }
                     }
@@ -162,47 +150,60 @@ fun InsightsScreen(
 }
 
 @Composable
-fun IndexCard(stock: Stock, onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
+fun IndexCard(stock: Stock, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(
+        modifier = modifier.clickable { onClick() },
+        color = Color(0xFF1F1F1F),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(stock.symbol, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                
-                // Small Logo
                 if (!stock.logoUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = stock.logoUrl,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape),
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(6.dp)),
                         contentScale = ContentScale.Fit
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Public,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(stock.symbol, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(stock.name, color = Color.Gray, fontSize = 12.sp, maxLines = 1)
+            }
             
-            Spacer(modifier = Modifier.height(4.dp))
-            
-            Text("$${String.format(Locale.US, "%,.2f", stock.price)}", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            
-            val color = if (stock.change >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
-            val prefix = if (stock.change >= 0) "+" else ""
-            Text(
-                text = "$prefix${String.format(Locale.US, "%.2f", stock.percentChange)}%",
-                color = color,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                Text("$${String.format(Locale.US, "%,.2f", stock.price)}", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                
+                val color = if (stock.change >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+                val prefix = if (stock.change >= 0) "+" else ""
+                Text(
+                    text = "$prefix${String.format(Locale.US, "%.2f", stock.percentChange)}%",
+                    color = color,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -215,33 +216,34 @@ fun SectorItem(stock: Stock, modifier: Modifier = Modifier, onClick: () -> Unit)
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = getSectorIcon(stock.symbol),
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
             
+            Spacer(modifier = Modifier.width(12.dp))
+
             Column(modifier = Modifier.weight(1f)) {
-                Text(stock.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(stock.name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 
                 val color = if (stock.percentChange >= 0) Color(0xFF4CAF50) else Color(0xFFF44336)
                 val prefix = if (stock.percentChange >= 0) "+" else ""
                 Text(
                     text = "$prefix${String.format(Locale.US, "%.2f", stock.percentChange)}%",
                     color = color,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
             }

@@ -1518,8 +1518,8 @@ class MarketRepository @Inject constructor(
         val sortedMovers = allQuotes.filter { moverCandidates.contains(it.symbol) }
             .sortedByDescending { it.percentChange }
             
-        val gainers = sortedMovers.take(5)
-        val losers = sortedMovers.takeLast(5).reversed()
+        val gainers = sortedMovers.take(10)
+        val losers = sortedMovers.takeLast(10).reversed()
         
         return MarketInsights(indices, sectors, gainers, losers)
     }
