@@ -1,13 +1,8 @@
 package com.rahul.stocksim.ui.screens
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,7 +25,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
@@ -39,8 +33,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.rahul.stocksim.BuildConfig
 import com.rahul.stocksim.data.AuthRepository
-import com.rahul.stocksim.data.NotificationSettings
-import com.rahul.stocksim.util.NotificationHelper
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -57,20 +49,6 @@ fun SettingsScreen(navController: NavController) {
     
     var profilePhotoUrl by remember { mutableStateOf(user?.photoUrl) }
     var displayName by remember { mutableStateOf(user?.displayName ?: "") }
-    var notifSettings by remember { mutableStateOf(NotificationSettings()) }
-
-    // Permission launcher to handle system-level permission request
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            val updated = notifSettings.copy(masterEnabled = true)
-            notifSettings = updated
-            coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-        } else {
-            Toast.makeText(context, "Notifications permission denied.", Toast.LENGTH_SHORT).show()
-        }
-    }
 
     val loadData: suspend () -> Unit = {
         try {
@@ -78,22 +56,6 @@ fun SettingsScreen(navController: NavController) {
             user = authRepository.currentUser
             displayName = user?.displayName ?: ""
             profilePhotoUrl = user?.photoUrl
-            val settings = authRepository.getNotificationSettings()
-            
-            // Sync with system permission on Android 13+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                if (!hasPermission && settings.masterEnabled) {
-                    // System permission was denied, force disable the app-level setting
-                    val updated = settings.copy(masterEnabled = false)
-                    notifSettings = updated
-                    authRepository.saveNotificationSettings(updated)
-                } else {
-                    notifSettings = settings
-                }
-            } else {
-                notifSettings = settings
-            }
         } catch (e: Exception) {
             // Handle potential errors
         } finally {
@@ -195,71 +157,6 @@ fun SettingsScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Notifications Section
-                SettingsSection(title = "Notifications") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Use notifications", color = Color.White)
-                        Switch(
-                            checked = notifSettings.masterEnabled,
-                            onCheckedChange = { 
-                                if (it) {
-                                    // User trying to enable notifications
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-                                        if (!hasPermission) {
-                                            // Trigger system permission request
-                                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                        } else {
-                                            // Permission already exists, just update repo
-                                            val updated = notifSettings.copy(masterEnabled = true)
-                                            notifSettings = updated
-                                            coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                                        }
-                                    } else {
-                                        // Legacy Android versions don't need runtime permission
-                                        val updated = notifSettings.copy(masterEnabled = true)
-                                        notifSettings = updated
-                                        coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                                    }
-                                } else {
-                                    // User turning notifications OFF
-                                    val updated = notifSettings.copy(masterEnabled = false)
-                                    notifSettings = updated
-                                    coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                                }
-                            }
-                        )
-                    }
-                    
-                    if (notifSettings.masterEnabled) {
-                        HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Notify me when:", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 16.dp))
-                        
-                        NotificationCheckbox("Large stock drop", notifSettings.notifyLargeDrop) {
-                            val updated = notifSettings.copy(notifyLargeDrop = it)
-                            notifSettings = updated
-                            coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                        }
-                        NotificationCheckbox("Low balance", notifSettings.notifyLowBalance) {
-                            val updated = notifSettings.copy(notifyLowBalance = it)
-                            notifSettings = updated
-                            coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                        }
-                        NotificationCheckbox("New sign-in detected", notifSettings.notifyNewSignIn) { 
-                            val updated = notifSettings.copy(notifyNewSignIn = it)
-                            notifSettings = updated
-                            coroutineScope.launch { authRepository.saveNotificationSettings(updated) }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // Account Security Section
                 SettingsSection(title = "Support") {
                     SettingsItem(
@@ -312,7 +209,7 @@ fun SettingsScreen(navController: NavController) {
                     SettingsItem(
                         icon = Icons.Default.Info,
                         label = "Current Version",
-                        value = "${BuildConfig.VERSION_NAME}",
+                        value = BuildConfig.VERSION_NAME,
                         trailing = {}
                     )
                 }
@@ -378,7 +275,6 @@ fun ProfileImageInternal(
 
 @Composable
 fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
-    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = title,
@@ -419,16 +315,5 @@ fun SettingsItem(
             Text(text = value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         }
         trailing()
-    }
-}
-
-@Composable
-fun NotificationCheckbox(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().clickable { onCheckedChange(!checked) }.padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(label, color = Color.White, fontSize = 14.sp)
     }
 }

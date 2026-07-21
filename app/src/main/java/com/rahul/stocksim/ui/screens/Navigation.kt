@@ -50,7 +50,7 @@ sealed class Screen(val route: String) {
 
 sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
     object Portfolio : BottomNavItem("portfolio_screen", "Portfolio", Icons.Default.AccountBalanceWallet)
-    object Market : BottomNavItem("market_screen", "Stocks", Icons.Default.BarChart)
+    object Market : BottomNavItem("market_screen", "Market", Icons.Default.BarChart)
     object Contracts : BottomNavItem("contracts_screen", "Contracts", Icons.Default.AttachMoney)
     object Leaderboard : BottomNavItem("leaderboard_screen", "Leaders", Icons.Default.Leaderboard)
     object Insights : BottomNavItem("insights_screen", "Insights", Icons.AutoMirrored.Filled.TrendingUp)

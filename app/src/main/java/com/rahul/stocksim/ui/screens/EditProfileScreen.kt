@@ -9,6 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,7 +22,7 @@ import androidx.navigation.NavController
 import com.rahul.stocksim.data.AuthRepository
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun EditProfileScreen(navController: NavController) {
     val context = LocalContext.current
@@ -76,10 +78,9 @@ fun EditProfileScreen(navController: NavController) {
                         trailingIcon = {
                             if (name.isNotEmpty() && name != user?.displayName) {
                                 if (isUpdatingName) {
-                                    CircularProgressIndicator(
+                                    LoadingIndicator(
                                         modifier = Modifier.size(24.dp),
-                                        color = Color.White,
-                                        strokeWidth = 2.dp
+                                        color = Color.White
                                     )
                                 } else {
                                     IconButton(onClick = {
@@ -202,7 +203,7 @@ fun EditProfileScreen(navController: NavController) {
                     enabled = !isDeleting
                 ) {
                     if (isDeleting) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Red)
+                        LoadingIndicator(modifier = Modifier.size(18.dp), color = Color.Red)
                     } else {
                         Text("DELETE", color = Color.Red, fontWeight = FontWeight.Bold)
                     }

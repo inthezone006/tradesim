@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -21,7 +23,7 @@ import com.rahul.stocksim.data.FinnhubEconomicEntry
 import com.rahul.stocksim.ui.viewmodels.MacroUiState
 import com.rahul.stocksim.ui.viewmodels.MacroViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun MacroScreen(
     viewModel: MacroViewModel = hiltViewModel()
@@ -39,7 +41,7 @@ fun MacroScreen(
         when (val state = uiState) {
             is MacroUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingIndicator(color = Color.White)
                 }
             }
             is MacroUiState.Success -> {

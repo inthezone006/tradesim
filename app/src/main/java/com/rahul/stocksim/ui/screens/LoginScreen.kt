@@ -13,6 +13,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +48,7 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LoginScreen(navController: NavController, initialError: String? = null) {
     val authRepository = AuthRepository()
@@ -157,9 +160,8 @@ fun LoginScreen(navController: NavController, initialError: String? = null) {
                     )
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             color = Color.White,
-                            strokeWidth = 2.dp,
                             modifier = Modifier.size(24.dp)
                         )
                     } else {

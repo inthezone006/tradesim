@@ -24,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +59,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StockDetailScreen(
     stockSymbol: String?,
@@ -183,10 +185,9 @@ fun StockDetailScreen(
                 },
                 actions = {
                     if (isRefreshing) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(20.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
+                            color = Color.White
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
@@ -219,7 +220,7 @@ fun StockDetailScreen(
         when (val state = uiState) {
             is StockDetailUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingIndicator(color = Color.White)
                 }
             }
             is StockDetailUiState.Error -> {
@@ -408,7 +409,7 @@ fun StockDetailScreen(
                                     .background(Color(0xFF1F1F1F).copy(alpha = 0.5f))
                             ) {
                                 if (isGraphLoading) {
-                                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
+                                    LoadingIndicator(modifier = Modifier.align(Alignment.Center), color = MaterialTheme.colorScheme.primary)
                                 } else if (history.isNotEmpty()) {
                                     Column {
                                         VicoLineChart(
@@ -1461,6 +1462,7 @@ fun AIRecommendationContent(recommendation: AIRecommendation) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun AIAnalysisSection(analysis: String?, onExpand: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
@@ -1517,10 +1519,9 @@ fun AIAnalysisSection(analysis: String?, onExpand: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
+                        LoadingIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color(0xFFBB86FC),
-                            strokeWidth = 2.dp
+                            color = Color(0xFFBB86FC)
                         )
                     }
                 }

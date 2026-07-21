@@ -15,6 +15,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,6 +47,7 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
     val authRepository = AuthRepository()
@@ -162,7 +165,7 @@ fun RegisterScreen(navController: NavController) {
                     )
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        LoadingIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(

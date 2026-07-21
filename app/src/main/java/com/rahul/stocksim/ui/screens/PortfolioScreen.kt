@@ -13,6 +13,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
@@ -38,7 +40,7 @@ import com.rahul.stocksim.ui.viewmodels.PortfolioViewModel
 import com.google.accompanist.pager.HorizontalPagerIndicator
 import kotlinx.coroutines.flow.first
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PortfolioScreen(
     navController: NavController,
@@ -59,7 +61,7 @@ fun PortfolioScreen(
         when (val state = uiState) {
             is PortfolioUiState.Loading -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
+                    LoadingIndicator(color = Color.White)
                 }
             }
             is PortfolioUiState.Success -> {
@@ -298,7 +300,7 @@ fun PortfolioScreen(
                                                         verticalArrangement = Arrangement.Center,
                                                         horizontalAlignment = Alignment.CenterHorizontally
                                                     ) {
-                                                        CircularProgressIndicator(color = Color(0xFFBB86FC), modifier = Modifier.size(32.dp))
+                                                        LoadingIndicator(color = Color(0xFFBB86FC), modifier = Modifier.size(32.dp))
                                                         Spacer(modifier = Modifier.height(16.dp))
                                                         Text("Gemini is analyzing your portfolio...", color = Color.Gray, fontSize = 12.sp)
                                                     }

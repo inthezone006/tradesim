@@ -3,22 +3,26 @@ package com.rahul.stocksim.ui.screens
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,20 +46,24 @@ data class LeaderboardUser(
     val level: Int = 4
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun LeaderboardScreen(mainNavController: NavController) {
     val firestore = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val currentUserId = auth.currentUser?.uid
+    val haptic = LocalHapticFeedback.current
     
+    val levels = listOf(0, 1, 2, 3, 4, 5, 6, 7)
+    val pagerState = rememberPagerState(pageCount = { levels.size })
+    val coroutineScope = rememberCoroutineScope()
+
     var leaders by remember { mutableStateOf<List<LeaderboardUser>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
-    var selectedLevelFilter by remember { mutableIntStateOf(0) } // 0 = All Levels
     var errorMessage by remember { mutableStateOf<String?>(null) }
     
-    val coroutineScope = rememberCoroutineScope()
+    val selectedLevelFilter = pagerState.currentPage
 
     val fetchLeaders = {
         coroutineScope.launch {
@@ -103,7 +111,7 @@ fun LeaderboardScreen(mainNavController: NavController) {
                 if (e !is kotlinx.coroutines.CancellationException && 
                     e !is java.net.UnknownHostException &&
                     e !is java.net.SocketTimeoutException) {
-                    com.google.firebase.Firebase.crashlytics.recordException(e)
+                    Firebase.crashlytics.recordException(e)
                 }
                 
                 // Fallback: Fetch all users and filter locally if the index isn't ready
@@ -149,112 +157,129 @@ fun LeaderboardScreen(mainNavController: NavController) {
         fetchLeaders()
     }
 
-    Box(
+    Column(
         modifier = Modifier.fillMaxSize().background(Color(0xFF121212))
     ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 16.dp)
-        ) {
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Leaderboard",
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Level Filter Chips
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                ) {
-                    val levels = listOf(0, 1, 2, 3, 4, 5, 6, 7)
-                    levels.forEach { level ->
-                        FilterChip(
-                            selected = selectedLevelFilter == level,
-                            onClick = { 
-                                if (selectedLevelFilter != level) {
-                                    selectedLevelFilter = level
-                                }
-                            },
-                            label = { Text(if (level == 0) "All" else "Level $level") },
-                            modifier = Modifier.padding(end = 8.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = Color.White,
-                                containerColor = Color(0xFF1F1F1F),
-                                labelColor = Color.Gray
-                            )
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                val currentUserLeader = leaders.find { it.id == currentUserId }
-                val currentUserRank = leaders.indexOfFirst { it.id == currentUserId }.let { if (it != -1) it + 1 else null }
-                
-                if (currentUserLeader != null) {
-                    CurrentUserSummary(rank = currentUserRank, userValue = currentUserLeader.totalAccountValue)
-                    Spacer(modifier = Modifier.height(24.dp))
-                }
-            }
-
-            if (isLoading && !isRefreshing) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillParentMaxHeight(0.7f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color.White)
-                    }
-                }
-            } else if (leaders.isEmpty() && errorMessage == null) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillParentMaxHeight(0.7f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (selectedLevelFilter == 0) "No traders found." else "No traders found for Level $selectedLevelFilter.",
-                            color = Color.Gray,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
-            } else if (errorMessage != null) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillParentMaxHeight(0.7f)
-                            .fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(errorMessage!!, color = Color.Gray)
-                    }
-                }
-            } else {
-                itemsIndexed(leaders) { index, user ->
-                    LeaderCard(
-                        rank = index + 1,
-                        user = user, 
-                        isCurrentUser = user.id == currentUserId
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
-            }
+        // Static Header Area
+        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Leaderboard",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
             
-            item { Spacer(modifier = Modifier.height(32.dp)) }
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Level Filter Tabs
+            ScrollableTabRow(
+                selectedTabIndex = pagerState.currentPage,
+                containerColor = Color.Transparent,
+                contentColor = Color.White,
+                edgePadding = 0.dp,
+                divider = {},
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
+                        color = Color.White
+                    )
+                }
+            ) {
+                levels.forEachIndexed { index, level ->
+                    Tab(
+                        selected = pagerState.currentPage == index,
+                        onClick = {
+                            if (pagerState.currentPage != index) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            }
+                        },
+                        text = { 
+                            Text(
+                                text = if (level == 0) "All" else "Level $level",
+                                fontSize = 14.sp
+                            ) 
+                        }
+                    )
+                }
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.Top
+        ) { pageIndex ->
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    val currentUserLeader = leaders.find { it.id == currentUserId }
+                    val currentUserRank = leaders.indexOfFirst { it.id == currentUserId }.let { if (it != -1) it + 1 else null }
+                    
+                    if (currentUserLeader != null) {
+                        CurrentUserSummary(rank = currentUserRank, userValue = currentUserLeader.totalAccountValue)
+                        Spacer(modifier = Modifier.height(24.dp))
+                    }
+                }
+
+                if (isLoading && !isRefreshing) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxHeight(0.7f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            LoadingIndicator(color = Color.White)
+                        }
+                    }
+                } else if (leaders.isEmpty() && errorMessage == null) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxHeight(0.7f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = if (levels[pageIndex] == 0) "No traders found." else "No traders found for Level ${levels[pageIndex]}.",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                } else if (errorMessage != null) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxHeight(0.7f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(errorMessage!!, color = Color.Gray)
+                        }
+                    }
+                } else {
+                    itemsIndexed(leaders) { index, user ->
+                        LeaderCard(
+                            rank = index + 1,
+                            user = user, 
+                            isCurrentUser = user.id == currentUserId
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+                
+                item { Spacer(modifier = Modifier.height(32.dp)) }
+            }
         }
     }
 }

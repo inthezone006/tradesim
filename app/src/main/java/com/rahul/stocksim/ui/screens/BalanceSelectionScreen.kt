@@ -8,6 +8,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,7 +24,7 @@ import kotlinx.coroutines.launch
 
 data class BalanceLevel(val level: Int, val amount: Double, val label: String)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BalanceSelectionScreen(
     navController: NavController,
@@ -117,7 +119,7 @@ fun BalanceSelectionScreen(
                 contentColor = Color.White
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                    LoadingIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
                     Icon(Icons.Default.Check, contentDescription = "Confirm Selection")
                 }
