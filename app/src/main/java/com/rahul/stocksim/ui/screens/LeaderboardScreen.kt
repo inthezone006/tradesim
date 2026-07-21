@@ -35,6 +35,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.crashlytics.crashlytics
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.rahul.stocksim.ui.viewmodels.LeaderboardViewModel
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.launch
 
@@ -48,113 +50,25 @@ data class LeaderboardUser(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun LeaderboardScreen(mainNavController: NavController) {
-    val firestore = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
-    val currentUserId = auth.currentUser?.uid
+fun LeaderboardScreen(
+    mainNavController: NavController,
+    viewModel: LeaderboardViewModel = hiltViewModel()
+) {
     val haptic = LocalHapticFeedback.current
     
     val levels = listOf(0, 1, 2, 3, 4, 5, 6, 7)
     val pagerState = rememberPagerState(pageCount = { levels.size })
     val coroutineScope = rememberCoroutineScope()
 
-    var leaders by remember { mutableStateOf<List<LeaderboardUser>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var isRefreshing by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val leadersCache by viewModel.leadersCache.collectAsState()
+    val loadingStates by viewModel.loadingStates.collectAsState()
+    val errorMessages by viewModel.errorMessages.collectAsState()
     
-    val selectedLevelFilter = pagerState.currentPage
-
-    val fetchLeaders = {
-        coroutineScope.launch {
-            errorMessage = null
-            if (!isRefreshing) isLoading = true
-            try {
-                // Determine the query
-                val baseQuery = if (selectedLevelFilter == 0) {
-                    firestore.collection("users")
-                        .orderBy("totalAccountValue", Query.Direction.DESCENDING)
-                } else {
-                    firestore.collection("users")
-                        .whereEqualTo("level", selectedLevelFilter)
-                        .orderBy("totalAccountValue", Query.Direction.DESCENDING)
-                }
-
-                // Increase limit to show more users
-                val snapshot = try {
-                    baseQuery.limit(100).get().await()
-                } catch (e: Exception) {
-                    if (e.message?.contains("PERMISSION_DENIED") == true) {
-                        errorMessage = "Access denied. Please check your internet or account."
-                        null
-                    } else throw e
-                }
-
-                if (snapshot != null) {
-                    leaders = snapshot.documents.map { doc ->
-                        LeaderboardUser(
-                            id = doc.id,
-                            name = doc.getString("displayName") ?: doc.getString("email")?.split("@")?.get(0) ?: "Trader",
-                            totalAccountValue = (doc.get("totalAccountValue") as? Number)?.toDouble() 
-                                ?: (doc.get("balance") as? Number)?.toDouble() ?: 0.0,
-                            photoUrl = doc.getString("photoUrl"),
-                            level = ((doc.get("level") as? Number)?.toLong() ?: 4L).toInt()
-                        )
-                    }
-                    
-                    if (leaders.isEmpty()) {
-                        Log.d("Leaderboard", "No users found for level $selectedLevelFilter")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("Leaderboard", "Query failed, falling back to local filter", e)
-                if (e !is kotlinx.coroutines.CancellationException && 
-                    e !is java.net.UnknownHostException &&
-                    e !is java.net.SocketTimeoutException) {
-                    Firebase.crashlytics.recordException(e)
-                }
-                
-                // Fallback: Fetch all users and filter locally if the index isn't ready
-                try {
-                    val fallbackSnapshot = firestore.collection("users")
-                        .orderBy("totalAccountValue", Query.Direction.DESCENDING)
-                        .limit(200)
-                        .get().await()
-                    
-                    val allUsers = fallbackSnapshot.documents.map { doc ->
-                        LeaderboardUser(
-                            id = doc.id,
-                            name = doc.getString("displayName") ?: doc.getString("email")?.split("@")?.get(0) ?: "Trader",
-                            totalAccountValue = (doc.get("totalAccountValue") as? Number)?.toDouble() 
-                                ?: (doc.get("balance") as? Number)?.toDouble() ?: 0.0,
-                            photoUrl = doc.getString("photoUrl"),
-                            level = ((doc.get("level") as? Number)?.toLong() ?: 4L).toInt()
-                        )
-                    }
-                    
-                    leaders = if (selectedLevelFilter == 0) {
-                        allUsers
-                    } else {
-                        allUsers.filter { it.level == selectedLevelFilter }
-                    }
-                } catch (fallbackEx: Exception) {
-                    if (fallbackEx !is kotlinx.coroutines.CancellationException && 
-                        fallbackEx !is java.net.UnknownHostException &&
-                        fallbackEx !is java.net.SocketTimeoutException) {
-                        com.google.firebase.Firebase.crashlytics.recordException(fallbackEx)
-                    }
-                    leaders = emptyList()
-                    errorMessage = "Leaderboard currently unavailable."
-                }
-            } finally {
-                isLoading = false
-                isRefreshing = false
-            }
-        }
-    }
+    val currentUserId = viewModel.currentUserId
+    val selectedLevelFilter = levels[pagerState.currentPage]
 
     LaunchedEffect(selectedLevelFilter) {
-        fetchLeaders()
+        viewModel.fetchLeadersIfNeeded(selectedLevelFilter)
     }
 
     Column(
@@ -213,6 +127,11 @@ fun LeaderboardScreen(mainNavController: NavController) {
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.Top
         ) { pageIndex ->
+            val level = levels[pageIndex]
+            val leaders = leadersCache[level] ?: emptyList()
+            val isLoading = loadingStates[level] ?: false
+            val errorMessage = errorMessages[level]
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -222,7 +141,9 @@ fun LeaderboardScreen(mainNavController: NavController) {
                     Spacer(modifier = Modifier.height(24.dp))
 
                     val currentUserLeader = leaders.find { it.id == currentUserId }
-                    val currentUserRank = leaders.indexOfFirst { it.id == currentUserId }.let { if (it != -1) it + 1 else null }
+                    val currentUserRank = if (currentUserLeader != null) {
+                         leaders.indexOfFirst { it.id == currentUserId }.let { if (it != -1) it + 1 else null }
+                    } else null
                     
                     if (currentUserLeader != null) {
                         CurrentUserSummary(rank = currentUserRank, userValue = currentUserLeader.totalAccountValue)
@@ -230,7 +151,7 @@ fun LeaderboardScreen(mainNavController: NavController) {
                     }
                 }
 
-                if (isLoading && !isRefreshing) {
+                if (isLoading && leaders.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -250,13 +171,13 @@ fun LeaderboardScreen(mainNavController: NavController) {
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (levels[pageIndex] == 0) "No traders found." else "No traders found for Level ${levels[pageIndex]}.",
+                                text = if (level == 0) "No traders found." else "No traders found for Level $level.",
                                 color = Color.Gray,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
                     }
-                } else if (errorMessage != null) {
+                } else if (errorMessage != null && leaders.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -264,7 +185,7 @@ fun LeaderboardScreen(mainNavController: NavController) {
                                 .fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(errorMessage!!, color = Color.Gray)
+                            Text(errorMessage, color = Color.Gray)
                         }
                     }
                 } else {
