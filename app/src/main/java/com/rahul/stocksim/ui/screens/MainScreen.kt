@@ -167,46 +167,48 @@ fun MainScreen(
                                     Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
                                 }
                             }
-                            IconButton(onClick = { 
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                mainNavController.navigate(Screen.Achievements.route) 
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.EmojiEvents,
-                                    contentDescription = "Achievements",
-                                    tint = Color(0xFFFFD700)
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.DarkGray)
-                                    .semantics { contentDescription = "Profile" }
-                                    .clickable { 
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        mainNavController.navigate(Screen.Settings.route) 
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val photoUrl = user?.photoUrl
-                                if (photoUrl != null) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(photoUrl)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                            if (!searchActive) {
+                                IconButton(onClick = { 
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    mainNavController.navigate(Screen.Achievements.route) 
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.EmojiEvents,
+                                        contentDescription = "Achievements",
+                                        tint = Color(0xFFFFD700)
                                     )
-                                } else {
-                                    Text(
-                                        text = user?.email?.firstOrNull()?.toString()?.uppercase() ?: "?",
-                                        color = Color.White,
-                                        fontSize = 12.sp
-                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .padding(end = 12.dp)
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.DarkGray)
+                                        .semantics { contentDescription = "Profile" }
+                                        .clickable { 
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            mainNavController.navigate(Screen.Settings.route) 
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val photoUrl = user?.photoUrl
+                                    if (photoUrl != null) {
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(photoUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = user?.email?.firstOrNull()?.toString()?.uppercase() ?: "?",
+                                            color = Color.White,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                 }
                             }
                         }
