@@ -246,65 +246,68 @@ fun MainScreen(
         },
         bottomBar = {
             if (!searchActive) {
-                NavigationBar(
-                    containerColor = Color(0xFF1F1F1F),
-                    contentColor = Color.White
-                ) {
-                    val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
+                Box(modifier = Modifier.fillMaxWidth().background(Color(0xFF1F1F1F)).navigationBarsPadding()) {
+                    NavigationBar(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .padding(horizontal = 48.dp),
+                        containerColor = Color.Transparent,
+                        contentColor = Color.White,
+                        tonalElevation = 0.dp,
+                        windowInsets = WindowInsets(0)
+                    ) {
+                        val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+                        val currentDestination = navBackStackEntry?.destination
 
-                    navItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                bottomNavController.navigate(item.route) {
-                                    popUpTo(bottomNavController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                BadgedBox(
-                                    badge = {
-                                        if (item == BottomNavItem.Guide && !isTutorialCompleted) {
-                                            Badge(
-                                                containerColor = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(8.dp)
-                                            )
+                        navItems.forEach { item ->
+                            val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    bottomNavController.navigate(item.route) {
+                                        popUpTo(bottomNavController.graph.findStartDestination().id) {
+                                            saveState = true
                                         }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                ) {
-                                    Icon(
-                                        item.icon,
-                                        contentDescription = item.label,
-                                        tint = if (selected) Color.White else Color.Gray
-                                    )
+                                },
+                                icon = {
+                                    BadgedBox(
+                                        badge = {
+                                            if (item == BottomNavItem.Guide && !isTutorialCompleted) {
+                                                Badge(
+                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                    modifier = Modifier.size(8.dp)
+                                                )
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            item.icon,
+                                            contentDescription = item.label,
+                                            modifier = Modifier.size(28.dp),
+                                            tint = if (selected) Color.White else Color.Gray
+                                        )
+                                    }
+                                },
+                                alwaysShowLabel = false,
+                                colors = NavigationBarItemDefaults.colors(
+                                    indicatorColor = Color.Transparent,
+                                    selectedIconColor = Color.White,
+                                    unselectedIconColor = Color.Gray,
+                                    disabledIconColor = Color.Gray,
+                                    disabledTextColor = Color.Gray
+                                ),
+                                interactionSource = object : androidx.compose.foundation.interaction.MutableInteractionSource {
+                                    override val interactions = kotlinx.coroutines.flow.emptyFlow<androidx.compose.foundation.interaction.Interaction>()
+                                    override suspend fun emit(interaction: androidx.compose.foundation.interaction.Interaction) {}
+                                    override fun tryEmit(interaction: androidx.compose.foundation.interaction.Interaction) = true
                                 }
-                            },
-                            label = {
-                                Text(
-                                    item.label,
-                                    color = if (selected) Color.White else Color.Gray,
-                                    fontSize = 10.sp
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = Color.Transparent,
-                                selectedIconColor = Color.White,
-                                unselectedIconColor = Color.Gray,
-                                disabledIconColor = Color.Gray,
-                                disabledTextColor = Color.Gray
-                            ),
-                            interactionSource = object : androidx.compose.foundation.interaction.MutableInteractionSource {
-                                override val interactions = kotlinx.coroutines.flow.emptyFlow<androidx.compose.foundation.interaction.Interaction>()
-                                override suspend fun emit(interaction: androidx.compose.foundation.interaction.Interaction) {}
-                                override fun tryEmit(interaction: androidx.compose.foundation.interaction.Interaction) = true
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
