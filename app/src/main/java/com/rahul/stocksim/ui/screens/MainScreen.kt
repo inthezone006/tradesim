@@ -181,6 +181,8 @@ fun MainScreen(
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.DarkGray)
                                     .semantics { contentDescription = "Profile" }
                                     .clickable { 
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -197,7 +199,7 @@ fun MainScreen(
                                             .build(),
                                         contentDescription = null,
                                         contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
                                     )
                                 } else {
                                     Text(

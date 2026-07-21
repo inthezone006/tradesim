@@ -266,11 +266,7 @@ fun PortfolioScreen(
                                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                         Column {
                                                             Text("Risk Level", color = Color.Gray, fontSize = 12.sp)
-                                                            Text(analysis.riskLevel, color = when(analysis.riskLevel) {
-                                                                "Low" -> Color.Green
-                                                                "Medium" -> Color.Yellow
-                                                                else -> Color.Red
-                                                            }, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                                            Text(analysis.riskLevel, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                                                         }
                                                         Column(horizontalAlignment = Alignment.End) {
                                                             Text("Diversification", color = Color.Gray, fontSize = 12.sp)
@@ -360,8 +356,7 @@ fun PortfolioScreen(
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     StockRow(
-                                        stock = stock,
-                                        ownedQuantity = quantity
+                                        stock = stock
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Row(
@@ -425,11 +420,7 @@ fun PortfolioScreen(
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Text("Risk Level", color = Color.Gray, fontSize = 12.sp)
-                                    Text(analysis.riskLevel, color = when(analysis.riskLevel) {
-                                        "Low" -> Color.Green
-                                        "Medium" -> Color.Yellow
-                                        else -> Color.Red
-                                    }, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    Text(analysis.riskLevel, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                                 }
                             }
                             Card(

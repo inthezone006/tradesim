@@ -23,7 +23,6 @@ import com.rahul.stocksim.model.Stock
 @Composable
 fun StockRow(
     stock: Stock,
-    ownedQuantity: Long = 0,
     modifier: Modifier = Modifier,
     onRowClick: ((Stock) -> Unit)? = null
 ) {
@@ -93,22 +92,6 @@ fun StockRow(
                               Text(
                                   text = "CRYPTO",
                                   color = Color(0xFFFFA726),
-                                  fontSize = 9.sp,
-                                  fontWeight = FontWeight.Bold
-                              )
-                          }
-                      }
-                      if (ownedQuantity > 0) {
-                          Spacer(modifier = Modifier.width(6.dp))
-                          Box(
-                              modifier = Modifier
-                                  .clip(RoundedCornerShape(4.dp))
-                                  .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                  .padding(horizontal = 4.dp, vertical = 1.dp)
-                          ) {
-                              Text(
-                                  text = "$ownedQuantity",
-                                  color = MaterialTheme.colorScheme.primary,
                                   fontSize = 9.sp,
                                   fontWeight = FontWeight.Bold
                               )

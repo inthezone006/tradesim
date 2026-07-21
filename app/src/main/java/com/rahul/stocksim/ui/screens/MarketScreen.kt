@@ -94,8 +94,7 @@ fun MarketScreen(
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     StockRow(
-                                        stock = currentStock,
-                                        ownedQuantity = state.portfolio[currentStock.symbol] ?: 0L
+                                        stock = currentStock
                                     )
                                 }
                             }
