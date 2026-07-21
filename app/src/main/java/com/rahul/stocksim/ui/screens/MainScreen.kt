@@ -217,12 +217,15 @@ fun MainScreen(
                         .fillMaxWidth()
                         .then(if (!searchActive) Modifier.padding(horizontal = 16.dp, vertical = 8.dp) else Modifier),
                     colors = SearchBarDefaults.colors(
-                        containerColor = Color(0xFF1F1F1F),
+                        containerColor = if (searchActive) Color.Transparent else Color(0xFF1F1F1F),
                         inputFieldColors = TextFieldDefaults.colors(
                             focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            unfocusedTextColor = Color.White,
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent
                         )
-                    )
+                    ),
+                    tonalElevation = 0.dp
                 ) {
                     if (searchActive) {
                         if (isSearching) {
