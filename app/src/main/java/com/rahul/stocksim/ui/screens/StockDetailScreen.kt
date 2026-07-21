@@ -192,14 +192,18 @@ fun StockDetailScreen(
                     }
                     if (uiState is StockDetailUiState.Success) {
 
-                        IconButton(onClick = { showAlertDialog = !showAlertDialog }) {
+                        IconButton(onClick = { 
+                            showAlertDialog = !showAlertDialog 
+                        }) {
                             Icon(
                                 imageVector = Icons.Default.NotificationsActive,
                                 contentDescription = "Set Alert",
                                 tint = if (priceAlerts.isNotEmpty()) MaterialTheme.colorScheme.primary else Color.White
                             )
                         }
-                        IconButton(onClick = { viewModel.toggleWatchlist() }) {
+                        IconButton(onClick = { 
+                            viewModel.toggleWatchlist() 
+                        }) {
                             Icon(
                                 imageVector = if (isInWatchlist) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                                 contentDescription = "Watchlist",
@@ -426,7 +430,9 @@ fun StockDetailScreen(
                                                 FilterChip(
                                                     modifier = Modifier.weight(1f),
                                                     selected = selectedPeriod == period,
-                                                    onClick = { viewModel.refreshGraph(period) },
+                                                    onClick = { 
+                                                        viewModel.refreshGraph(period) 
+                                                    },
                                                     label = { 
                                                         Text(
                                                             text = period,
@@ -608,7 +614,9 @@ fun StockDetailScreen(
                                 Spacer(modifier = Modifier.height(24.dp))
                                 
                                 OutlinedButton(
-                                    onClick = { showContractsSheet = true },
+                                    onClick = { 
+                                        showContractsSheet = true 
+                                    },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                                     shape = RoundedCornerShape(12.dp)

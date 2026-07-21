@@ -19,6 +19,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +44,7 @@ fun PortfolioScreen(
     navController: NavController,
     viewModel: PortfolioViewModel = hiltViewModel()
 ) {
+    val haptic = LocalHapticFeedback.current
     val balance by viewModel.userBalance.collectAsState(initial = 0.0)
     val uiState by viewModel.uiState.collectAsState()
     val portfolioHistory by viewModel.portfolioHistory.collectAsState()
@@ -348,7 +351,10 @@ fun PortfolioScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
-                                    .clickable { navController.navigate(Screen.Details.createRoute(stock.symbol)) },
+                                    .clickable { 
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        navController.navigate(Screen.Details.createRoute(stock.symbol)) 
+                                    },
                                 color = Color(0xFF1F1F1F),
                                 shape = RoundedCornerShape(12.dp)
                             ) {

@@ -15,9 +15,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -60,6 +62,7 @@ fun MainScreen(
 ) {
     val bottomNavController = rememberNavController()
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val networkObserver = remember { NetworkObserver(context) }
     val networkStatus by networkObserver.networkStatus.collectAsState(initial = NetworkStatus.Available)
     val snackbarHostState = remember { SnackbarHostState() }
@@ -164,7 +167,10 @@ fun MainScreen(
                                     Icon(Icons.Default.Close, contentDescription = "Clear", tint = Color.White)
                                 }
                             }
-                            IconButton(onClick = { mainNavController.navigate(Screen.Achievements.route) }) {
+                            IconButton(onClick = { 
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                mainNavController.navigate(Screen.Achievements.route) 
+                            }) {
                                 Icon(
                                     imageVector = Icons.Default.EmojiEvents,
                                     contentDescription = "Achievements",
@@ -175,10 +181,11 @@ fun MainScreen(
                                 modifier = Modifier
                                     .padding(end = 12.dp)
                                     .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.DarkGray)
                                     .semantics { contentDescription = "Profile" }
-                                    .clickable { mainNavController.navigate(Screen.Settings.route) },
+                                    .clickable { 
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        mainNavController.navigate(Screen.Settings.route) 
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 val photoUrl = user?.photoUrl
@@ -224,6 +231,7 @@ fun MainScreen(
                                 supportingContent = { Text(stock.name, color = Color.Gray) },
                                 trailingContent = { Text("$${String.format("%,.2f", stock.price)}", color = Color.White) },
                                 modifier = Modifier.clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     searchActive = false
                                     onStockClick(stock)
                                 },
@@ -248,6 +256,7 @@ fun MainScreen(
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 bottomNavController.navigate(item.route) {
                                     popUpTo(bottomNavController.graph.findStartDestination().id) {
                                         saveState = true

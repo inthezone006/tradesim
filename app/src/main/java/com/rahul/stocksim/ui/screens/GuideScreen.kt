@@ -26,7 +26,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -39,6 +41,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun GuideScreen(navController: NavController) {
+    val haptic = LocalHapticFeedback.current
     val authRepository = remember { AuthRepository() }
     var isTutorialCompleted by remember { mutableStateOf(true) }
 
@@ -66,7 +69,10 @@ fun GuideScreen(navController: NavController) {
         item {
             TutorialCard(
                     isCompleted = isTutorialCompleted,
-                    onClick = { navController.navigate(Screen.MarketTutorial.route) }
+                    onClick = { 
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        navController.navigate(Screen.MarketTutorial.route) 
+                    }
                 )
             }
 
@@ -762,11 +768,15 @@ data class TutorialStep(val title: String, val description: String, val icon: Im
 @Composable
 fun GuideSection(title: String, icon: ImageVector, content: String, detailedContent: String) {
     var showDialog by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { showDialog = true },
+            .clickable { 
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                showDialog = true 
+            },
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1F1F1F)),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -832,7 +842,10 @@ fun GuideSection(title: String, icon: ImageVector, content: String, detailedCont
                 )
             },
             confirmButton = {
-                TextButton(onClick = { showDialog = false }) {
+                TextButton(onClick = { 
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showDialog = false 
+                }) {
                     Text("Got it!", color = MaterialTheme.colorScheme.primary)
                 }
             }

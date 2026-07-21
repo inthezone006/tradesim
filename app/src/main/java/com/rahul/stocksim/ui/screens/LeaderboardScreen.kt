@@ -149,12 +149,7 @@ fun LeaderboardScreen(mainNavController: NavController) {
         fetchLeaders()
     }
 
-    PullToRefreshBox(
-        isRefreshing = isRefreshing,
-        onRefresh = {
-            isRefreshing = true
-            fetchLeaders()
-        },
+    Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF121212))
     ) {
         LazyColumn(

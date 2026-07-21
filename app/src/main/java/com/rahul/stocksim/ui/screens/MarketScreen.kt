@@ -14,7 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,7 @@ fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val uiState by viewModel.uiState.collectAsState()
 
     Box(
@@ -82,7 +85,10 @@ fun MarketScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp, horizontal = 16.dp)
-                                    .clickable { onStockClick(currentStock) },
+                                    .clickable { 
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        onStockClick(currentStock) 
+                                    },
                                 color = Color(0xFF1F1F1F),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
@@ -109,6 +115,7 @@ fun MarketScreen(
                         }
                         items(state.marketNews) { article ->
                             NewsArticleItem(article) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(article.url))
                                 context.startActivity(intent)
                             }

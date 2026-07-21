@@ -1412,10 +1412,15 @@ class MarketRepository @Inject constructor(
     suspend fun getCompanyProfile(symbol: String): FinnhubProfileResponse? = try {
         val cached = stockDao.getCompanyDetails(symbol)
         if (cached?.profileJson != null && System.currentTimeMillis() - cached.lastUpdated < 86400000L) {
-            gson.fromJson(cached.profileJson, FinnhubProfileResponse::class.java)
+            val profile = gson.fromJson(cached.profileJson, FinnhubProfileResponse::class.java)
+            profile.logo?.let { logoCache[symbol] = it }
+            profile.name?.let { companyNameMap[symbol] = it }
+            profile
         } else {
             val remote = api.getCompanyProfile(symbol, apiKey)
             if (remote != null) {
+                remote.logo?.let { logoCache[symbol] = it }
+                remote.name?.let { companyNameMap[symbol] = it }
                 val current = cached ?: CompanyDetailsEntity(symbol)
                 stockDao.insertCompanyDetails(current.copy(profileJson = gson.toJson(remote), lastUpdated = System.currentTimeMillis()))
             }
